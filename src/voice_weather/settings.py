@@ -6,22 +6,23 @@ from .config import APP_DIR, CITIES_FILE, DEFAULT_CITIES
 
 SETTINGS_FILE = APP_DIR / "settings.json"
 WORLD_FAVORITES = [
-    {"city": "Toronto, Canada", "zh": "多伦多"},
-    {"city": "Vancouver, Canada", "zh": "温哥华"},
-    {"city": "New York, United States", "zh": "纽约"},
-    {"city": "Mexico City, Mexico", "zh": "墨西哥城"},
-    {"city": "São Paulo, Brazil", "zh": "圣保罗"},
-    {"city": "London, United Kingdom", "zh": "伦敦"},
-    {"city": "Paris, France", "zh": "巴黎"},
-    {"city": "Cairo, Egypt", "zh": "开罗"},
-    {"city": "Dubai, United Arab Emirates", "zh": "迪拜"},
-    {"city": "Mumbai, India", "zh": "孟买"},
-    {"city": "Singapore", "zh": "新加坡"},
-    {"city": "Tokyo, Japan", "zh": "东京"},
-    {"city": "Sydney, Australia", "zh": "悉尼"},
+    {"city":"Toronto, Canada","zh":"多伦多","labels":{"zh":"多伦多","en":"Toronto","fr":"Toronto","es":"Toronto","ja":"トロント"}},
+    {"city":"Vancouver, Canada","zh":"温哥华","labels":{"zh":"温哥华","en":"Vancouver","fr":"Vancouver","es":"Vancouver","ja":"バンクーバー"}},
+    {"city":"New York, United States","zh":"纽约","labels":{"zh":"纽约","en":"New York","fr":"New York","es":"Nueva York","ja":"ニューヨーク"}},
+    {"city":"Mexico City, Mexico","zh":"墨西哥城","labels":{"zh":"墨西哥城","en":"Mexico City","fr":"Mexico","es":"Ciudad de México","ja":"メキシコシティ"}},
+    {"city":"São Paulo, Brazil","zh":"圣保罗","labels":{"zh":"圣保罗","en":"São Paulo","fr":"São Paulo","es":"São Paulo","ja":"サンパウロ"}},
+    {"city":"London, United Kingdom","zh":"伦敦","labels":{"zh":"伦敦","en":"London","fr":"Londres","es":"Londres","ja":"ロンドン"}},
+    {"city":"Paris, France","zh":"巴黎","labels":{"zh":"巴黎","en":"Paris","fr":"Paris","es":"París","ja":"パリ"}},
+    {"city":"Cairo, Egypt","zh":"开罗","labels":{"zh":"开罗","en":"Cairo","fr":"Le Caire","es":"El Cairo","ja":"カイロ"}},
+    {"city":"Dubai, United Arab Emirates","zh":"迪拜","labels":{"zh":"迪拜","en":"Dubai","fr":"Dubaï","es":"Dubái","ja":"ドバイ"}},
+    {"city":"Mumbai, India","zh":"孟买","labels":{"zh":"孟买","en":"Mumbai","fr":"Mumbai","es":"Bombay","ja":"ムンバイ"}},
+    {"city":"Singapore","zh":"新加坡","labels":{"zh":"新加坡","en":"Singapore","fr":"Singapour","es":"Singapur","ja":"シンガポール"}},
+    {"city":"Beijing, China","zh":"北京","labels":{"zh":"北京","en":"Beijing","fr":"Pékin","es":"Pekín","ja":"北京"}},
+    {"city":"Tokyo, Japan","zh":"东京","labels":{"zh":"东京","en":"Tokyo","fr":"Tokyo","es":"Tokio","ja":"東京"}},
+    {"city":"Sydney, Australia","zh":"悉尼","labels":{"zh":"悉尼","en":"Sydney","fr":"Sydney","es":"Sídney","ja":"シドニー"}},
 ]
 DEFAULT_SETTINGS = {
-    "version": 3,
+    "version": 5,
     "language": "zh",
     "voice_enabled": True,
     "location_consent_asked": False,
@@ -34,14 +35,22 @@ def load_settings(path: Path = SETTINGS_FILE, legacy_path: Path = CITIES_FILE) -
     if path.exists():
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            if data.get("version") in {2, 3} and isinstance(data.get("favorites"), list):
+            if data.get("version") in {2, 3, 4, 5} and isinstance(data.get("favorites"), list):
                 if data.get("version") == 2:
                     legacy_names = {item["city"].split(",")[0].strip().lower() for item in DEFAULT_CITIES}
                     current_names = {item.get("city", "").split(",")[0].strip().lower() for item in data["favorites"]}
                     if len(current_names) >= 5 and current_names.issubset(legacy_names):
                         data["favorites"] = deepcopy(WORLD_FAVORITES)
                     data["version"] = 3
-                    save_settings(data, path)
+                if data.get("version") == 3:
+                    world_by_city = {item["city"].casefold(): item for item in WORLD_FAVORITES}
+                    data["favorites"] = [deepcopy(world_by_city.get(item.get("city", "").casefold(), item)) for item in data["favorites"]]
+                    data["version"] = 4
+                if data.get("version") == 4:
+                    beijing = next(item for item in WORLD_FAVORITES if item["city"].startswith("Beijing,"))
+                    data["favorites"] = [deepcopy(beijing) if item.get("city", "").split(",")[0].strip() == "北京" else item for item in data["favorites"]]
+                    data["version"] = 5
+                save_settings(data, path)
                 return data
         except (OSError, ValueError, AttributeError):
             pass

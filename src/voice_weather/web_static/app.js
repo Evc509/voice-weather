@@ -25,6 +25,7 @@ const healthUi = {
   ja:{aqi:'大気質',uv:'UV指数',good:'大気質は良好です。',moderate:'敏感な方は長時間の屋外活動を控えてください。',poor:'屋外活動を減らしてください。',highUv:'紫外線が強いため、日焼け対策をしてください。',rain:'降水量',wind:'最大風速',sunrise:'日の出',sunset:'日の入'}
 };
 const metaUi={en:{version:'local web app',privacy:'Location stays city-level. The local service only listens on this Mac.',source:'Weather data by Open-Meteo.com',voice:'Voice',text:'Text only',playing:'Playing weather',setLocation:'Set your location in voice-weather-cli settings'},zh:{version:'本地网页应用',privacy:'定位只保留城市级信息，本地服务仅在这台 Mac 上运行。',source:'天气数据由 Open-Meteo.com 提供',voice:'语音',text:'仅文字',playing:'正在播放天气',setLocation:'请先在 voice-weather-cli 设置当前位置'},fr:{version:'application web locale',privacy:'La localisation reste au niveau de la ville. Le service fonctionne uniquement sur ce Mac.',source:'Données météo par Open-Meteo.com',voice:'Voix',text:'Texte uniquement',playing:'Lecture de la météo',setLocation:'Définissez votre position dans voice-weather-cli'},es:{version:'aplicación web local',privacy:'La ubicación se mantiene a nivel de ciudad. El servicio solo funciona en este Mac.',source:'Datos meteorológicos de Open-Meteo.com',voice:'Voz',text:'Solo texto',playing:'Reproduciendo el tiempo',setLocation:'Configure su ubicación en voice-weather-cli'},ja:{version:'ローカルWebアプリ',privacy:'位置情報は都市レベルのみで、このMac上だけで動作します。',source:'気象データ: Open-Meteo.com',voice:'音声',text:'テキストのみ',playing:'天気を再生中',setLocation:'voice-weather-cliで現在地を設定してください'}};
+const stopUi={en:['Stop','Playback stopped'],zh:['停止','播放已停止'],fr:['Arrêter','Lecture arrêtée'],es:['Detener','Reproducción detenida'],ja:['停止','再生を停止しました']};
 
 const showToast = message => { const el=$('toast'); el.textContent=message; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2600); };
 const api = async (url, options) => { const response=await fetch(url,options); const data=await response.json(); if(!response.ok) throw new Error(data.error||'Request failed'); return data; };
@@ -39,6 +40,7 @@ function applyLanguage(){
   $('city-name-label').textContent=cityText[2]; $('city-zh-label').textContent=cityText[3]; $('save-city').textContent=cityText[4]; $('delete-city').textContent=cityText[5];
   $('aqi-label').textContent=health.aqi; $('uv-label').textContent=health.uv; document.documentElement.lang=state.language;
   $('version').textContent=`Version ${state.version} · ${meta.version}`; $('privacy-text').textContent=meta.privacy; $('source-text').textContent=meta.source; $('voice-status').textContent=state.voice?`${meta.voice}: ${state.voice}`:meta.text;
+  $('stop-speak').textContent=`■ ${(stopUi[state.language]||stopUi.en)[0]}`;
 }
 
 function renderCities(){
@@ -84,6 +86,7 @@ function openCityDialog(index){
 $('language').onchange=async event=>{ await api('/api/preferences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({language:event.target.value})}); location.reload(); };
 $('refresh').onclick=()=>currentCity&&loadCity(currentCity); $('add-city').onclick=()=>openCityDialog(-1);
 $('speak').onclick=async()=>{ if(!currentWeather)return; const selected=state.cities.find(city=>city.city===currentCity); try{ await api('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({city:currentCity,label:selected?cityName(selected):currentCity,language:state.language})}); showToast((metaUi[state.language]||metaUi.en).playing); }catch(error){ showToast(error.message); } };
+$('stop-speak').onclick=async()=>{try{await api('/api/speech/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});showToast((stopUi[state.language]||stopUi.en)[1])}catch(error){showToast(error.message)}};
 $('city-form').onsubmit=async event=>{ event.preventDefault(); const index=Number($('city-index').value),action=index>=0?'replace':'add'; try{ await api('/api/cities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,index,city:$('city-input').value,label:$('city-zh-input').value,language:state.language})}); $('city-dialog').close(); location.reload(); }catch(error){ showToast(error.message); } };
 $('delete-city').onclick=async()=>{ const index=Number($('city-index').value); try{ await api('/api/cities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',index})}); $('city-dialog').close(); location.reload(); }catch(error){ showToast(error.message); } };
 init();

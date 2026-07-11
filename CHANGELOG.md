@@ -2,6 +2,21 @@
 
 All notable changes to Voice Weather are documented here.
 
+## [3.0.1] - 2026-07-11
+
+### Fixed
+
+- Added French, Spanish and Japanese display names for the geographically distributed default cities.
+- Migrated existing v3 default-city settings to the complete five-language label set.
+- Repaired previously saved Beijing entries whose display label was incorrectly set to the country name.
+- New playback now stops any previous macOS speech process before starting, preventing overlapping or out-of-order completion.
+
+### Added
+
+- A localized Stop button for immediately ending voice playback.
+
+[3.0.1]: https://github.com/Evc509/voice-weather/releases/tag/v3.0.1
+
 ## [3.0.0] - 2026-07-11
 
 ### Added

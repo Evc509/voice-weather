@@ -32,7 +32,7 @@ def test_state_api(monkeypatch):
     server, base = run_server(monkeypatch)
     try:
         data = json.loads(urlopen(base + "/api/state", timeout=2).read())
-        assert data["version"] == "3.0.0"
+        assert data["version"] == "3.0.1"
         assert data["cities"][0]["city"] == "Toronto"
         assert data["voice"] == "Samantha"
     finally:
@@ -44,7 +44,7 @@ def test_server_is_localhost_only():
 
 
 def test_city_add_api(monkeypatch):
-    settings = {"version": 3, "language": "en", "voice_enabled": True, "local_city": None, "favorites": []}
+    settings = {"version": 5, "language": "en", "voice_enabled": True, "local_city": None, "favorites": []}
     monkeypatch.setattr(web, "load_settings", lambda: settings)
     monkeypatch.setattr(web, "save_settings", lambda data: None)
     monkeypatch.setattr(web, "resolve_city", lambda city, language: {"city": "Paris, Île-de-France, France", "label": "Paris"})

@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import threading
 
 
 class SpeechError(RuntimeError):
@@ -13,6 +14,9 @@ VOICE_PREFERENCES = {
     "es": ["Monica", "Jorge", "Paulina"],
     "ja": ["Kyoko", "Otoya"],
 }
+
+_process_lock = threading.Lock()
+_process = None
 
 
 def available_voices() -> list[str]:
@@ -28,12 +32,33 @@ def voice_for(language: str) -> str:
 
 
 def speak(text: str, language: str) -> None:
+    global _process
     if shutil.which("say") is None:
         raise SpeechError("找不到 macOS 的 say 命令")
     voice = voice_for(language)
     if not voice:
         raise SpeechError(f"No installed macOS voice supports language: {language}")
     rate = "190" if language == "zh" else "180"
-    result = subprocess.run(["say", "-v", voice, "-r", rate, text], check=False)
-    if result.returncode:
-        raise SpeechError(f"语音播报失败，退出码 {result.returncode}")
+    with _process_lock:
+        _stop_locked()
+        process = subprocess.Popen(["say", "-v", voice, "-r", rate, text])
+        _process = process
+    returncode = process.wait()
+    with _process_lock:
+        if _process is not process:
+            return
+        _process = None
+    if returncode:
+        raise SpeechError(f"语音播报失败，退出码 {returncode}")
+
+
+def _stop_locked() -> None:
+    global _process
+    process, _process = _process, None
+    if process is not None and process.poll() is None:
+        process.terminate()
+
+
+def stop_speech() -> None:
+    with _process_lock:
+        _stop_locked()

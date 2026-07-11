@@ -14,7 +14,7 @@ from . import __version__
 from .app import build_script
 from .i18n import LANGUAGES, weather_text
 from .settings import display_cities, load_settings, save_settings
-from .speech import SpeechError, speak, voice_for
+from .speech import SpeechError, speak, stop_speech, voice_for
 from .weather import WeatherError, fetch_forecast, fetch_weather, resolve_city
 
 HOST = "127.0.0.1"
@@ -169,6 +169,9 @@ class WebHandler(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True})
             except (SpeechError, WeatherError) as exc:
                 return self.send_json({"error": str(exc)}, 422)
+        if self.path == "/api/speech/stop":
+            stop_speech()
+            return self.send_json({"ok": True})
         return self.send_error(404)
 
 
