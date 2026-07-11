@@ -1,5 +1,7 @@
 # Voice Weather
 
+[![Tests](https://github.com/Evc509/voice-weather/actions/workflows/tests.yml/badge.svg)](https://github.com/Evc509/voice-weather/actions/workflows/tests.yml)
+
 A macOS bilingual weather console that fetches current conditions and reads them aloud in Mandarin or English.
 
 ## Features
@@ -48,6 +50,8 @@ You can also run it with `python -m voice_weather`.
 python -m pip install -e ".[dev]"
 pytest
 ```
+
+Every push and pull request is also tested automatically on Python 3.9–3.12 with GitHub Actions.
 
 ## Privacy
 
