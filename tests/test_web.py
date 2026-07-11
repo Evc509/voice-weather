@@ -32,7 +32,7 @@ def test_state_api(monkeypatch):
     server, base = run_server(monkeypatch)
     try:
         data = json.loads(urlopen(base + "/api/state", timeout=2).read())
-        assert data["version"] == "3.0.1"
+        assert data["version"] == "3.1.0"
         assert data["cities"][0]["city"] == "Toronto"
         assert data["voice"] == "Samantha"
     finally:
@@ -47,11 +47,11 @@ def test_city_add_api(monkeypatch):
     settings = {"version": 5, "language": "en", "voice_enabled": True, "local_city": None, "favorites": []}
     monkeypatch.setattr(web, "load_settings", lambda: settings)
     monkeypatch.setattr(web, "save_settings", lambda data: None)
-    monkeypatch.setattr(web, "resolve_city", lambda city, language: {"city": "Paris, Île-de-France, France", "label": "Paris"})
+    monkeypatch.setattr(web, "localized_city_labels", lambda name, latitude, longitude: {"zh": "巴黎", "en": "Paris", "fr": "Paris", "es": "París", "ja": "パリ"})
     server = web.ThreadingHTTPServer((web.HOST, 0), web.WebHandler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        payload = json.dumps({"action": "add", "city": "Paris, France", "label": "Paris", "language": "fr"}).encode()
+        payload = json.dumps({"action": "add", "city": "Paris, Île-de-France, France", "name": "Paris", "latitude": 48.85, "longitude": 2.35, "language": "fr"}).encode()
         request = Request(f"http://{web.HOST}:{server.server_port}/api/cities", data=payload, headers={"Content-Type": "application/json"}, method="POST")
         data = json.loads(urlopen(request, timeout=2).read())
         assert data["favorites"][0]["city"] == "Paris, Île-de-France, France"

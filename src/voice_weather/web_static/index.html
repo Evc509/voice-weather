@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/static/dialog.css">
   <link rel="stylesheet" href="/static/sidebar.css">
   <link rel="stylesheet" href="/static/health.css">
+  <link rel="stylesheet" href="/static/city-search.css">
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -55,11 +56,11 @@
   </main>
   <dialog id="city-dialog" class="city-dialog">
     <form id="city-form" method="dialog">
-      <div class="dialog-heading"><div><span class="eyebrow">CITY</span><h2 id="dialog-title">Add a city</h2></div><button id="dialog-close" class="icon-button" value="cancel" aria-label="Close">×</button></div>
-      <label><span id="city-name-label">City and country</span><input id="city-input" autocomplete="off" placeholder="Paris, France" required></label>
-      <label><span id="city-zh-label">Display name in this language (optional)</span><input id="city-zh-input" autocomplete="off" placeholder="Paris"></label>
-      <input id="city-index" type="hidden" value="-1">
-      <div class="dialog-actions"><button id="delete-city" type="button" class="danger-button">Delete</button><button id="save-city" type="submit" class="primary-button">Save city</button></div>
+      <div class="dialog-heading"><div><span class="eyebrow">CITY</span><h2 id="dialog-title">Add a city</h2></div><button id="dialog-close" type="button" class="icon-button" aria-label="Close">×</button></div>
+      <label><span id="city-name-label">City, region or country</span><div class="search-row"><input id="city-input" autocomplete="off" placeholder="Paris, France" required><button id="search-city" type="button" class="primary-button">Search</button></div></label>
+      <p id="search-help" class="dialog-help">Search first, then confirm one available location.</p>
+      <div id="city-results" class="city-results"></div>
+      <div class="dialog-actions"><button id="save-city" type="submit" class="primary-button" disabled>Add selected city</button></div>
     </form>
   </dialog>
   <script src="/static/app.js"></script>

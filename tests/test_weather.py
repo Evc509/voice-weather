@@ -1,7 +1,7 @@
 from voice_weather.app import build_script
 import requests
 
-from voice_weather.weather import Weather, WeatherError, fetch_forecast, fetch_weather
+from voice_weather.weather import Weather, WeatherError, fetch_forecast, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
 
 
 SAMPLE = Weather("20", "19", "0", "55", "12", "1013", "Sunny", "10:00")
@@ -103,3 +103,25 @@ def test_fetch_forecast_parses_daily_summary(monkeypatch):
     assert forecast[0].description == "Clear"
     assert forecast[0].rain_chance == "35"
     assert forecast[0].sunrise == "05:45"
+
+
+def test_city_search_returns_confirmable_location(monkeypatch):
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeGeocodingResponse())
+    results = search_cities("Toronto", "fr")
+    assert results[0]["canonical"] == "Toronto, Ontario, Canada"
+    assert results[0]["latitude"] == 43.65
+
+
+def test_city_labels_are_collected_for_all_languages(monkeypatch):
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeGeocodingResponse())
+    assert set(localized_city_labels("Toronto", 43.65, -79.38)) == {"zh", "en", "fr", "es", "ja"}
+
+
+def test_coordinate_weather_skips_geocoding(monkeypatch):
+    urls = []
+    def fake_get(url, **kwargs):
+        urls.append(url)
+        return FakeAirResponse() if "air-quality" in url else FakeCurrentResponse()
+    monkeypatch.setattr(requests, "get", fake_get)
+    assert fetch_weather_at(43.65, -79.38).temperature_c == "20"
+    assert not any("geocoding" in url for url in urls)

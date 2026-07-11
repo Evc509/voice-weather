@@ -2,6 +2,36 @@
 
 All notable changes to Voice Weather are documented here.
 
+## [3.1.0] - 2026-07-11
+
+### Changed
+
+- Replaced unreliable direct city replacement with a search-and-confirm workflow.
+- The local city remains immutable in the first slot; other cities use explicit add and delete actions.
+
+### Added
+
+- Search results show confirmable city, region and country candidates before saving.
+- Newly added cities store display names for all five supported languages.
+- Existing local locations are enriched once with multilingual names.
+- Confirmed cities retain coordinates, avoiding repeated geocoding and translated-name ambiguity.
+
+[3.1.0]: https://github.com/Evc509/voice-weather/releases/tag/v3.1.0
+
+## [3.1.0] - Unreleased
+
+### Changed
+
+- Replaced unreliable direct city replacement with a search-and-confirm workflow.
+- The local city remains immutable in the first slot; other cities are managed only through explicit add and delete actions.
+
+### Added
+
+- City search returns confirmable candidates with city, region and country before saving.
+- Newly added cities store display names for all five supported languages.
+- Existing local locations are enriched once with multilingual names for language-consistent output.
+- Confirmed cities retain coordinates, so later weather requests avoid repeated geocoding and translated-name ambiguity.
+
 ## [3.0.1] - 2026-07-11
 
 ### Fixed

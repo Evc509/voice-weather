@@ -45,6 +45,8 @@ This starts a local service at `http://127.0.0.1:8765` and opens the default bro
 voice-weather-web --no-browser
 ```
 
+Use `＋` to add a city: enter a standard place name, run Search, review the city/region/country candidates, and confirm one result. Confirmed cities retain coordinates and five-language display names. The first local city is fixed; other cities can be explicitly added or deleted.
+
 Interactive mode:
 
 ```bash

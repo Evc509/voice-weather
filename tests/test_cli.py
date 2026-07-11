@@ -20,7 +20,7 @@ def test_version(monkeypatch, capsys):
     with pytest.raises(SystemExit) as exc:
         app.main()
     assert exc.value.code == 0
-    assert "voice-weather 3.0.1" in capsys.readouterr().out
+    assert "voice-weather 3.1.0" in capsys.readouterr().out
 
 
 def test_local_city_is_first(monkeypatch, capsys):

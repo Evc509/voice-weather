@@ -70,8 +70,12 @@ WMO_DESCRIPTIONS = {
 
 
 def fetch_weather(city: str, timeout: int = 10) -> Weather:
+    latitude, longitude = _geocode_city(city, timeout)
+    return fetch_weather_at(latitude, longitude, city, timeout)
+
+
+def fetch_weather_at(latitude: float, longitude: float, label: str = "location", timeout: int = 10) -> Weather:
     try:
-        latitude, longitude = _geocode_city(city, timeout)
         response = requests.get(
             "https://api.open-meteo.com/v1/forecast",
             params={
@@ -110,7 +114,7 @@ def fetch_weather(city: str, timeout: int = 10) -> Weather:
             pm10=str(round(air["pm10"], 1)),
         )
     except (requests.RequestException, KeyError, IndexError, TypeError, ValueError) as exc:
-        raise WeatherError(f"无法获取 {city} 的天气：{exc}") from exc
+        raise WeatherError(f"无法获取 {label} 的天气：{exc}") from exc
 
 
 def _geocode_result(city: str, timeout: int, language: str = "en") -> dict:
@@ -161,11 +165,48 @@ def resolve_city(city: str, language: str = "en", timeout: int = 10) -> dict:
     }
 
 
+def search_cities(query: str, language: str = "en", limit: int = 6, timeout: int = 10) -> list[dict]:
+    if not query.strip():
+        return []
+    try:
+        response = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": query.strip(), "count": limit, "language": language, "format": "json"},
+            headers={"User-Agent": "voice-weather/3.1.0"}, timeout=timeout,
+        )
+        response.raise_for_status()
+        results = []
+        for item in response.json().get("results", []):
+            name, region, country = item["name"], item.get("admin1", ""), item.get("country", "")
+            results.append({
+                "name": name, "region": region, "country": country,
+                "canonical": ", ".join(part for part in (name, region, country) if part),
+                "latitude": float(item["latitude"]), "longitude": float(item["longitude"]),
+            })
+        return results
+    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+        raise WeatherError(f"无法搜索城市 {query}：{exc}") from exc
+
+
+def localized_city_labels(name: str, latitude: float, longitude: float, timeout: int = 10) -> dict:
+    labels = {}
+    for language in ("zh", "en", "fr", "es", "ja"):
+        candidates = search_cities(name, language, 10, timeout)
+        if candidates:
+            closest = min(candidates, key=lambda item: abs(item["latitude"] - latitude) + abs(item["longitude"] - longitude))
+            labels[language] = closest["name"]
+    return labels
+
+
 def fetch_forecast(city: str, days: int = 7, timeout: int = 10) -> list[ForecastDay]:
+    latitude, longitude = _geocode_city(city, timeout)
+    return fetch_forecast_at(latitude, longitude, days, city, timeout)
+
+
+def fetch_forecast_at(latitude: float, longitude: float, days: int = 7, label: str = "location", timeout: int = 10) -> list[ForecastDay]:
     if not 1 <= days <= 7:
         raise ValueError("days must be between 1 and 7")
     try:
-        latitude, longitude = _geocode_city(city, timeout)
         response = requests.get(
             "https://api.open-meteo.com/v1/forecast",
             params={
@@ -196,4 +237,4 @@ def fetch_forecast(city: str, days: int = 7, timeout: int = 10) -> list[Forecast
             for index in range(len(daily["time"]))
         ]
     except (requests.RequestException, KeyError, IndexError, TypeError, ValueError) as exc:
-        raise WeatherError(f"无法解析 {city} 的天气预报：{exc}") from exc
+        raise WeatherError(f"无法解析 {label} 的天气预报：{exc}") from exc

@@ -15,7 +15,7 @@ from .app import build_script
 from .i18n import LANGUAGES, weather_text
 from .settings import display_cities, load_settings, save_settings
 from .speech import SpeechError, speak, stop_speech, voice_for
-from .weather import WeatherError, fetch_forecast, fetch_weather, resolve_city
+from .weather import WeatherError, fetch_forecast, fetch_forecast_at, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
 
 HOST = "127.0.0.1"
 PORT = 8765
@@ -73,6 +73,13 @@ class WebHandler(BaseHTTPRequestHandler):
             return self.send_static(name)
         if parsed.path == "/api/state":
             settings = load_settings()
+            local = settings.get("local_city")
+            if local and not local.get("labels") and local.get("latitude") is not None:
+                try:
+                    local["labels"] = localized_city_labels(local["city"].split(",")[0], float(local["latitude"]), float(local["longitude"]))
+                    save_settings(settings)
+                except WeatherError:
+                    pass
             return self.send_json({
                 "version": __version__,
                 "language": settings["language"],
@@ -85,18 +92,30 @@ class WebHandler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
         city = query.get("city", [""])[0].strip()
         language = query.get("language", ["en"])[0]
+        try:
+            latitude = float(query.get("latitude", [""])[0])
+            longitude = float(query.get("longitude", [""])[0])
+        except ValueError:
+            latitude = longitude = None
         if parsed.path == "/api/weather" and city:
             try:
-                weather = fetch_weather(city)
+                weather = fetch_weather_at(latitude, longitude, city) if latitude is not None else fetch_weather(city)
                 data = asdict(weather)
                 data["description_localized"] = weather_text(language, weather.description)
                 return self.send_json({"city": city, "weather": data})
             except WeatherError as exc:
                 return self.send_json({"error": str(exc)}, 502)
+        if parsed.path == "/api/cities/search":
+            term = query.get("q", [""])[0].strip()
+            try:
+                return self.send_json({"results": search_cities(term, language)})
+            except WeatherError as exc:
+                return self.send_json({"error": str(exc)}, 502)
         if parsed.path == "/api/forecast" and city:
             try:
                 days = min(7, max(1, int(query.get("days", ["7"])[0])))
-                forecast = [asdict(day) for day in fetch_forecast(city, days)]
+                days_data = fetch_forecast_at(latitude, longitude, days, city) if latitude is not None else fetch_forecast(city, days)
+                forecast = [asdict(day) for day in days_data]
                 for day in forecast:
                     day["description_localized"] = weather_text(language, day["description"])
                 return self.send_json({"city": city, "forecast": forecast})
@@ -125,32 +144,25 @@ class WebHandler(BaseHTTPRequestHandler):
             action = payload.get("action")
             city = str(payload.get("city", "")).strip()
             language = payload.get("language", settings.get("language", "en"))
-            label = str(payload.get("label", "")).strip()
+            name = str(payload.get("name", "")).strip()
             try:
                 index = int(payload.get("index", -1))
             except (TypeError, ValueError):
                 index = -1
             if action == "add":
-                if not city:
-                    return self.send_json({"error": "City is required"}, 400)
                 try:
-                    resolved = resolve_city(city, language)
+                    latitude, longitude = float(payload["latitude"]), float(payload["longitude"])
+                except (KeyError, TypeError, ValueError):
+                    return self.send_json({"error": "A confirmed search result is required"}, 400)
+                if not city or not name:
+                    return self.send_json({"error": "A confirmed search result is required"}, 400)
+                try:
+                    labels = localized_city_labels(name, latitude, longitude)
                 except WeatherError as exc:
                     return self.send_json({"error": str(exc)}, 422)
-                canonical = resolved["city"]
-                if any(item.get("city", "").casefold() == canonical.casefold() for item in favorites):
+                if any(item.get("city", "").casefold() == city.casefold() for item in favorites):
                     return self.send_json({"error": "City already exists"}, 409)
-                favorites.append({"city": canonical, "labels": {language: label or resolved["label"]}})
-            elif action == "replace" and 0 <= index < len(favorites):
-                if not city:
-                    return self.send_json({"error": "City is required"}, 400)
-                try:
-                    resolved = resolve_city(city, language)
-                except WeatherError as exc:
-                    return self.send_json({"error": str(exc)}, 422)
-                old_labels = favorites[index].get("labels", {})
-                old_labels[language] = label or resolved["label"]
-                favorites[index] = {"city": resolved["city"], "labels": old_labels}
+                favorites.append({"city": city, "labels": labels, "latitude": latitude, "longitude": longitude})
             elif action == "delete" and 0 <= index < len(favorites):
                 favorites.pop(index)
             else:
