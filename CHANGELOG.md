@@ -2,6 +2,20 @@
 
 All notable changes to Voice Weather are documented here.
 
+## [2.0.1] - 2026-07-11
+
+### Added
+
+- A macOS launcher that opens interactive sessions in a separate Terminal window.
+- Automatic screen clearing before an interactive session and window closing after exit.
+- `voice-weather-cli` for users who prefer the current terminal.
+
+### Changed
+
+- Commands with arguments continue to run in the current terminal for scripting compatibility.
+
+[2.0.1]: https://github.com/Evc509/voice-weather/releases/tag/v2.0.1
+
 ## [2.0.0] - 2026-07-10
 
 ### Added

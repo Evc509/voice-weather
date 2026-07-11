@@ -39,6 +39,12 @@ Interactive mode:
 voice-weather
 ```
 
+On macOS, `voice-weather` opens the interactive application in a separate Terminal window, clears that window before launch, and closes it automatically when the application exits. To keep the application in the current terminal, use:
+
+```bash
+voice-weather-cli
+```
+
 The numbered interactive menu separates current weather, forecasts, city management and city listing. Every city-selection screen starts at `[1]`, supports manual entry, and provides a clear return option.
 
 One-shot mode:
