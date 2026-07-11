@@ -1,7 +1,7 @@
 from voice_weather.app import build_script
 import requests
 
-from voice_weather.weather import Weather, WeatherError, fetch_weather
+from voice_weather.weather import Weather, WeatherError, fetch_forecast, fetch_weather
 
 
 SAMPLE = Weather("20", "19", "0", "55", "12", "1013", "Sunny", "10:00")
@@ -31,7 +31,16 @@ class FakeResponse:
                 "windspeedKmph": "12",
                 "pressure": "1013",
                 "weatherDesc": [{"value": "Sunny"}],
-            }]
+            }],
+            "weather": [{
+                "date": "2026-07-10",
+                "mintempC": "18",
+                "maxtempC": "27",
+                "hourly": [
+                    {"time": "0", "chanceofrain": "10", "weatherDesc": [{"value": "Clear"}]},
+                    {"time": "1200", "chanceofrain": "35", "weatherDesc": [{"value": "Sunny"}]},
+                ],
+            }],
         }
 
 
@@ -53,3 +62,12 @@ def test_fetch_weather_wraps_network_errors(monkeypatch):
         assert "Toronto" in str(exc)
     else:
         raise AssertionError("WeatherError was not raised")
+
+
+def test_fetch_forecast_parses_daily_summary(monkeypatch):
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeResponse())
+    forecast = fetch_forecast("Toronto", days=1)
+    assert forecast[0].date == "2026-07-10"
+    assert forecast[0].max_c == "27"
+    assert forecast[0].description == "Sunny"
+    assert forecast[0].rain_chance == "35"

@@ -2,6 +2,14 @@
 
 All notable changes to Voice Weather are documented here.
 
+## [0.2.0] - Unreleased
+
+### Added
+
+- Bilingual 1–3 day forecasts with daily high and low temperatures.
+- Maximum daily rain probability and a representative midday weather summary.
+- `--forecast` and `--days` command-line options.
+
 ## [0.1.0] - 2026-07-10
 
 ### Added

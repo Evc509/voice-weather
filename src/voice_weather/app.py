@@ -5,7 +5,7 @@ from . import __version__
 from .cities import load_cities, save_cities
 from .config import LOG_FILE
 from .speech import SpeechError, speak
-from .weather import Weather, WeatherError, fetch_weather
+from .weather import ForecastDay, Weather, WeatherError, fetch_forecast, fetch_weather
 
 WEATHER_ZH = {
     "sunny": "晴朗",
@@ -49,6 +49,22 @@ def log_script(text: str) -> None:
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with LOG_FILE.open("a", encoding="utf-8") as handle:
         handle.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {text}\n")
+
+
+def print_forecast(city: str, forecast: list[ForecastDay], language: str) -> None:
+    if language == "zh":
+        print(f"\n📅 {city} 未来 {len(forecast)} 天天气预报")
+        print("日期         最低/最高   降雨概率  天气")
+        for day in forecast:
+            description = weather_description_zh(day.description)
+            temperatures = f"{day.min_c}°/{day.max_c}°"
+            print(f"{day.date}   {temperatures:<10}  {day.rain_chance:>3}%      {description}")
+    else:
+        print(f"\n📅 {len(forecast)}-day forecast for {city}")
+        print("Date         Low/High    Rain   Conditions")
+        for day in forecast:
+            temperatures = f"{day.min_c}°/{day.max_c}°"
+            print(f"{day.date}   {temperatures:<10}  {day.rain_chance:>3}%   {day.description}")
 
 
 def edit_city(cities: list[dict[str, str]]) -> None:
@@ -120,11 +136,18 @@ def main() -> int:
     parser.add_argument("--language", choices=["zh", "en"], default="zh")
     parser.add_argument("--no-speech", action="store_true", help="Print without speaking")
     parser.add_argument("--list-cities", action="store_true", help="List configured shortcut cities")
+    parser.add_argument("--forecast", action="store_true", help="Show a 1-3 day forecast (requires --city)")
+    parser.add_argument("--days", type=int, choices=range(1, 4), default=3, metavar="1-3")
     args = parser.parse_args()
     try:
         if args.list_cities:
             for index, item in enumerate(load_cities(), 1):
                 print(f"{index}. {item['city']} ({item['zh']})")
+            return 0
+        if args.forecast:
+            if not args.city:
+                parser.error("--forecast requires --city")
+            print_forecast(args.city, fetch_forecast(args.city, args.days), args.language)
             return 0
         if args.city:
             return run(args.city, args.city_zh or args.city, args.language, args.no_speech)
