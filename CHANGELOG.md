@@ -21,6 +21,9 @@ All notable changes to Voice Weather are documented here.
 - Removed explanatory sublabels beneath city names for a cleaner sidebar.
 - Replaced the small legacy default list with geographically distributed cities across seven world regions.
 - Added persistent add, replace and delete operations for favorite cities.
+- Added geocoded city validation and language-specific display names when adding or replacing cities.
+- Added AQI, PM2.5, PM10, UV index and localized health guidance.
+- Forecast cards now show localized weekday and date, with expandable precipitation, wind, UV, sunrise and sunset details.
 
 ## [2.0.1] - 2026-07-11
 

@@ -14,7 +14,7 @@ from . import __version__
 from .i18n import LANGUAGES, weather_text
 from .settings import display_cities, load_settings, save_settings
 from .speech import SpeechError, speak, voice_for
-from .weather import WeatherError, fetch_forecast, fetch_weather
+from .weather import WeatherError, fetch_forecast, fetch_weather, resolve_city
 
 HOST = "127.0.0.1"
 PORT = 8765
@@ -34,7 +34,10 @@ class WebHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def send_static(self, name):
         target = STATIC_ROOT.joinpath(name)
@@ -48,7 +51,10 @@ class WebHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -112,7 +118,8 @@ class WebHandler(BaseHTTPRequestHandler):
             favorites = settings.setdefault("favorites", [])
             action = payload.get("action")
             city = str(payload.get("city", "")).strip()
-            zh = str(payload.get("zh", "")).strip() or city
+            language = payload.get("language", settings.get("language", "en"))
+            label = str(payload.get("label", "")).strip()
             try:
                 index = int(payload.get("index", -1))
             except (TypeError, ValueError):
@@ -120,13 +127,24 @@ class WebHandler(BaseHTTPRequestHandler):
             if action == "add":
                 if not city:
                     return self.send_json({"error": "City is required"}, 400)
-                if any(item.get("city", "").casefold() == city.casefold() for item in favorites):
+                try:
+                    resolved = resolve_city(city, language)
+                except WeatherError as exc:
+                    return self.send_json({"error": str(exc)}, 422)
+                canonical = resolved["city"]
+                if any(item.get("city", "").casefold() == canonical.casefold() for item in favorites):
                     return self.send_json({"error": "City already exists"}, 409)
-                favorites.append({"city": city, "zh": zh})
+                favorites.append({"city": canonical, "labels": {language: label or resolved["label"]}})
             elif action == "replace" and 0 <= index < len(favorites):
                 if not city:
                     return self.send_json({"error": "City is required"}, 400)
-                favorites[index] = {"city": city, "zh": zh}
+                try:
+                    resolved = resolve_city(city, language)
+                except WeatherError as exc:
+                    return self.send_json({"error": str(exc)}, 422)
+                old_labels = favorites[index].get("labels", {})
+                old_labels[language] = label or resolved["label"]
+                favorites[index] = {"city": resolved["city"], "labels": old_labels}
             elif action == "delete" and 0 <= index < len(favorites):
                 favorites.pop(index)
             else:

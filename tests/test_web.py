@@ -46,12 +46,14 @@ def test_city_add_api(monkeypatch):
     settings = {"version": 3, "language": "en", "voice_enabled": True, "local_city": None, "favorites": []}
     monkeypatch.setattr(web, "load_settings", lambda: settings)
     monkeypatch.setattr(web, "save_settings", lambda data: None)
+    monkeypatch.setattr(web, "resolve_city", lambda city, language: {"city": "Paris, Île-de-France, France", "label": "Paris"})
     server = web.ThreadingHTTPServer((web.HOST, 0), web.WebHandler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        payload = json.dumps({"action": "add", "city": "Paris, France", "zh": "巴黎"}).encode()
+        payload = json.dumps({"action": "add", "city": "Paris, France", "label": "Paris", "language": "fr"}).encode()
         request = Request(f"http://{web.HOST}:{server.server_port}/api/cities", data=payload, headers={"Content-Type": "application/json"}, method="POST")
         data = json.loads(urlopen(request, timeout=2).read())
-        assert data["favorites"][0]["city"] == "Paris, France"
+        assert data["favorites"][0]["city"] == "Paris, Île-de-France, France"
+        assert data["favorites"][0]["labels"]["fr"] == "Paris"
     finally:
         server.shutdown()

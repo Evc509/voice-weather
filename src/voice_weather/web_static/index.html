@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="stylesheet" href="/static/dialog.css">
   <link rel="stylesheet" href="/static/sidebar.css">
+  <link rel="stylesheet" href="/static/health.css">
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -24,7 +25,7 @@
       <aside class="sidebar card">
         <div class="section-heading"><div><span id="places-label" class="eyebrow">PLACES</span><h2 id="cities-heading">Your cities</h2></div><button id="add-city" class="small-button" title="Use another city">＋</button></div>
         <nav id="cities" class="city-list" aria-label="Cities"></nav>
-        <div class="privacy-note"><span>⌁</span><p>Location stays city-level. The local service only listens on this Mac.</p></div>
+        <div class="privacy-note"><span>⌁</span><p id="privacy-text">Location stays city-level. The local service only listens on this Mac.</p></div>
       </aside>
 
       <section class="content">
@@ -34,11 +35,18 @@
           <div id="metrics" class="metrics">
             <div><span id="feels-label">Feels like</span><strong id="feels">--°</strong></div><div><span id="humidity-label">Humidity</span><strong id="humidity">--%</strong></div><div><span id="wind-label">Wind</span><strong id="wind">--</strong></div><div><span id="pressure-label">Pressure</span><strong id="pressure">--</strong></div>
           </div>
+          <div class="health-grid">
+            <div><span id="aqi-label">Air quality</span><strong id="aqi">--</strong></div>
+            <div><span id="uv-label">UV index</span><strong id="uv">--</strong></div>
+            <div><span>PM2.5</span><strong id="pm25">--</strong></div>
+            <div><span>PM10</span><strong id="pm10">--</strong></div>
+          </div>
+          <p id="health-advice" class="health-advice"></p>
           <div class="hero-actions"><button id="speak" class="primary-button">▶ Play weather</button><span id="voice-status" class="status">Checking voice…</span></div>
         </article>
 
         <article class="forecast card">
-          <div class="section-heading"><div><span id="outlook-label" class="eyebrow">OUTLOOK</span><h2 id="forecast-heading">Seven-day forecast</h2></div><span class="source">Weather data by Open-Meteo.com</span></div>
+          <div class="section-heading"><div><span id="outlook-label" class="eyebrow">OUTLOOK</span><h2 id="forecast-heading">Seven-day forecast</h2></div><span id="source-text" class="source">Weather data by Open-Meteo.com</span></div>
           <div id="forecast" class="forecast-grid" aria-live="polite"></div>
         </article>
       </section>
@@ -49,7 +57,7 @@
     <form id="city-form" method="dialog">
       <div class="dialog-heading"><div><span class="eyebrow">CITY</span><h2 id="dialog-title">Add a city</h2></div><button id="dialog-close" class="icon-button" value="cancel" aria-label="Close">×</button></div>
       <label><span id="city-name-label">City and country</span><input id="city-input" autocomplete="off" placeholder="Paris, France" required></label>
-      <label><span id="city-zh-label">Chinese display name (optional)</span><input id="city-zh-input" autocomplete="off" placeholder="巴黎"></label>
+      <label><span id="city-zh-label">Display name in this language (optional)</span><input id="city-zh-input" autocomplete="off" placeholder="Paris"></label>
       <input id="city-index" type="hidden" value="-1">
       <div class="dialog-actions"><button id="delete-city" type="button" class="danger-button">Delete</button><button id="save-city" type="submit" class="primary-button">Save city</button></div>
     </form>
