@@ -24,7 +24,7 @@ def fetch_weather(city: str, timeout: int = 10) -> Weather:
         response = requests.get(
             f"https://wttr.in/{city}",
             params={"format": "j1"},
-            headers={"User-Agent": "voice-weather/0.1"},
+            headers={"User-Agent": "voice-weather/0.1.0"},
             timeout=timeout,
         )
         response.raise_for_status()
@@ -45,4 +45,3 @@ def fetch_weather(city: str, timeout: int = 10) -> Weather:
         )
     except (requests.RequestException, ValueError, KeyError, IndexError) as exc:
         raise WeatherError(f"无法获取 {city} 的天气：{exc}") from exc
-

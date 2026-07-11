@@ -42,6 +42,13 @@ voice-weather --city "Toronto" --city-zh "多伦多" --language zh
 voice-weather --city "Tokyo, Japan" --language en --no-speech
 ```
 
+Inspect the installation and configured shortcuts:
+
+```bash
+voice-weather --version
+voice-weather --list-cities
+```
+
 You can also run it with `python -m voice_weather`.
 
 ## Development

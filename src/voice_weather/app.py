@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
 
+from . import __version__
 from .cities import load_cities, save_cities
 from .config import LOG_FILE
 from .speech import SpeechError, speak
@@ -65,7 +66,7 @@ def edit_city(cities: list[dict[str, str]]) -> None:
     print("✅ 城市配置已保存")
 
 
-def interactive() -> None:
+def interactive() -> int:
     while True:
         cities = load_cities()
         print("\n🎙️ Canada Universal Bilingual Weather Console")
@@ -74,7 +75,7 @@ def interactive() -> None:
         print("m. 手动输入   e. 修改城市   q. 退出")
         choice = input("请选择: ").strip().lower()
         if choice == "q":
-            return
+            return 0
         if choice == "e":
             edit_city(cities)
             continue
@@ -97,7 +98,7 @@ def interactive() -> None:
         run(city, city_zh, "zh" if language == "1" else "en")
 
 
-def run(city: str, city_zh: str, language: str, no_speech: bool = False) -> None:
+def run(city: str, city_zh: str, language: str, no_speech: bool = False) -> int:
     try:
         weather = fetch_weather(city)
         script = build_script(city, city_zh, weather, language)
@@ -105,18 +106,29 @@ def run(city: str, city_zh: str, language: str, no_speech: bool = False) -> None
         if not no_speech:
             speak(script, language)
         log_script(script)
+        return 0
     except (WeatherError, SpeechError) as exc:
         print(f"❌ {exc}")
+        return 1
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description="Bilingual voice weather for macOS")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--city", help="City, optionally followed by country")
     parser.add_argument("--city-zh", help="Chinese display name")
     parser.add_argument("--language", choices=["zh", "en"], default="zh")
     parser.add_argument("--no-speech", action="store_true", help="Print without speaking")
+    parser.add_argument("--list-cities", action="store_true", help="List configured shortcut cities")
     args = parser.parse_args()
-    if args.city:
-        run(args.city, args.city_zh or args.city, args.language, args.no_speech)
-    else:
-        interactive()
+    try:
+        if args.list_cities:
+            for index, item in enumerate(load_cities(), 1):
+                print(f"{index}. {item['city']} ({item['zh']})")
+            return 0
+        if args.city:
+            return run(args.city, args.city_zh or args.city, args.language, args.no_speech)
+        return interactive()
+    except (KeyboardInterrupt, EOFError):
+        print("\n已退出。")
+        return 130
