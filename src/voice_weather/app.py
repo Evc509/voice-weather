@@ -93,18 +93,45 @@ def edit_city(cities: list[dict[str, str]]) -> None:
     print("✅ 城市配置已保存")
 
 
+def interactive_forecast(cities: list[dict[str, str]]) -> None:
+    print("\n📅 七日天气预报")
+    for index, item in enumerate(cities, 1):
+        print(f"{index}. {item['city']} ({item['zh']})")
+    raw_city = input("城市编号或其他城市名: ").strip()
+    if raw_city.isdigit() and 1 <= int(raw_city) <= len(cities):
+        city = cities[int(raw_city) - 1]["city"]
+    elif raw_city:
+        city = raw_city
+    else:
+        print("❌ 城市不能为空")
+        return
+    language_choice = input("显示语言 1. 中文  2. English [1]: ").strip() or "1"
+    if language_choice not in {"1", "2"}:
+        print("❌ 语言选择无效")
+        return
+    raw_days = input("预报天数 1-7 [7]: ").strip() or "7"
+    if not raw_days.isdigit() or not 1 <= int(raw_days) <= 7:
+        print("❌ 天数必须是 1 到 7")
+        return
+    forecast = fetch_forecast(city, int(raw_days))
+    print_forecast(city, forecast, "zh" if language_choice == "1" else "en")
+
+
 def interactive() -> int:
     while True:
         cities = load_cities()
         print("\n🎙️ Canada Universal Bilingual Weather Console")
         for index, item in enumerate(cities, 1):
             print(f"{index}. {item['city']} ({item['zh']})")
-        print("m. 手动输入   e. 修改城市   q. 退出")
+        print("m. 手动输入   f. 七日预报   e. 修改城市   q. 退出")
         choice = input("请选择: ").strip().lower()
         if choice == "q":
             return 0
         if choice == "e":
             edit_city(cities)
+            continue
+        if choice == "f":
+            interactive_forecast(cities)
             continue
         if choice == "m":
             city = input("城市和国家: ").strip()
@@ -166,3 +193,6 @@ def main() -> int:
     except (KeyboardInterrupt, EOFError):
         print("\n已退出。")
         return 130
+    except WeatherError as exc:
+        print(f"❌ {exc}")
+        return 1

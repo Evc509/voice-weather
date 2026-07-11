@@ -36,6 +36,8 @@ Interactive mode:
 voice-weather
 ```
 
+The interactive menu includes current voice weather, a seven-day forecast, and shortcut-city editing.
+
 One-shot mode:
 
 ```bash

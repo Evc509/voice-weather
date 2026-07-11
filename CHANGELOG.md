@@ -9,6 +9,7 @@ All notable changes to Voice Weather are documented here.
 - Bilingual 1–7 day forecasts with daily high and low temperatures, defaulting to seven days.
 - Maximum daily rain probability and a representative midday weather summary.
 - `--forecast` and `--days` command-line options.
+- Forecast access directly from the interactive menu, with city, language and day selection.
 
 ### Changed
 

@@ -37,3 +37,24 @@ def test_forecast_command(monkeypatch, capsys):
     output = capsys.readouterr().out
     assert "Toronto" in output
     assert "晴朗" in output
+
+
+def test_interactive_forecast_uses_defaults(monkeypatch, capsys):
+    answers = iter(["1", "", ""])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    monkeypatch.setattr(
+        app,
+        "fetch_forecast",
+        lambda city, days: [ForecastDay("2026-07-10", "18", "27", "Clear", "35")],
+    )
+    app.interactive_forecast([{"city": "Toronto", "zh": "多伦多"}])
+    output = capsys.readouterr().out
+    assert "Toronto 未来 1 天天气预报" in output
+    assert "晴朗" in output
+
+
+def test_interactive_forecast_rejects_bad_days(monkeypatch, capsys):
+    answers = iter(["Toronto", "2", "8"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    app.interactive_forecast([])
+    assert "天数必须是 1 到 7" in capsys.readouterr().out
