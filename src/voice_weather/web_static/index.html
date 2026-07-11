@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Voice Weather</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">◉</span><div><strong>Voice Weather</strong><small id="version">Local weather, beautifully spoken</small></div></div>
+      <div class="controls">
+        <label class="select-wrap"><span id="language-label">Language</span><select id="language" aria-label="Language"></select></label>
+        <button id="refresh" class="icon-button" aria-label="Refresh weather">↻</button>
+      </div>
+    </header>
+
+    <section class="layout">
+      <aside class="sidebar card">
+        <div class="section-heading"><div><span id="places-label" class="eyebrow">PLACES</span><h2 id="cities-heading">Your cities</h2></div><button id="add-city" class="small-button" title="Use another city">＋</button></div>
+        <nav id="cities" class="city-list" aria-label="Cities"></nav>
+        <div class="privacy-note"><span>⌁</span><p>Location stays city-level. The local service only listens on this Mac.</p></div>
+      </aside>
+
+      <section class="content">
+        <article id="hero" class="hero card loading-card">
+          <div class="hero-copy"><span id="local-time" class="eyebrow">CURRENT CONDITIONS</span><h1 id="city-name">Loading weather…</h1><p id="condition">Please wait a moment</p></div>
+          <div class="temperature"><span id="weather-icon">◌</span><strong id="temperature">--°</strong></div>
+          <div id="metrics" class="metrics">
+            <div><span id="feels-label">Feels like</span><strong id="feels">--°</strong></div><div><span id="humidity-label">Humidity</span><strong id="humidity">--%</strong></div><div><span id="wind-label">Wind</span><strong id="wind">--</strong></div><div><span id="pressure-label">Pressure</span><strong id="pressure">--</strong></div>
+          </div>
+          <div class="hero-actions"><button id="speak" class="primary-button">▶ Play weather</button><span id="voice-status" class="status">Checking voice…</span></div>
+        </article>
+
+        <article class="forecast card">
+          <div class="section-heading"><div><span id="outlook-label" class="eyebrow">OUTLOOK</span><h2 id="forecast-heading">Seven-day forecast</h2></div><span class="source">Weather data by Open-Meteo.com</span></div>
+          <div id="forecast" class="forecast-grid" aria-live="polite"></div>
+        </article>
+      </section>
+    </section>
+    <div id="toast" class="toast" role="status"></div>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

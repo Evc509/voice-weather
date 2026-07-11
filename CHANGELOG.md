@@ -2,6 +2,19 @@
 
 All notable changes to Voice Weather are documented here.
 
+## [3.0.0] - Unreleased
+
+### Added
+
+- Responsive local Web interface with current-weather and seven-day forecast cards.
+- City sidebar, language selector, refresh control and native macOS voice playback.
+- `voice-weather-web` command with automatic browser launch and `--no-browser` mode.
+- Local JSON API shared with the existing weather, settings and speech core.
+
+### Security
+
+- Web service binds exclusively to `127.0.0.1` and is not exposed to the local network.
+
 ## [2.0.1] - 2026-07-11
 
 ### Added

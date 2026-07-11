@@ -33,6 +33,18 @@ python -m pip install -e .
 
 ## Usage
 
+Local web interface (recommended):
+
+```bash
+voice-weather-web
+```
+
+This starts a local service at `http://127.0.0.1:8765` and opens the default browser. It never listens on your LAN. To start without opening a browser:
+
+```bash
+voice-weather-web --no-browser
+```
+
 Interactive mode:
 
 ```bash
