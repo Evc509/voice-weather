@@ -2,7 +2,7 @@
 
 All notable changes to Voice Weather are documented here.
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2026-07-10
 
 ### Added
 
@@ -19,6 +19,8 @@ All notable changes to Voice Weather are documented here.
 - Reorganized the main menu around weather, forecasts, cities, language and settings.
 - Language and voice preferences persist between sessions.
 - Current conditions and forecasts now share the Open-Meteo data source for consistent results.
+
+[2.0.0]: https://github.com/Evc509/voice-weather/releases/tag/v2.0.0
 
 ## [1.0.0] - 2026-07-10
 

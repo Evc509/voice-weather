@@ -12,7 +12,7 @@ A friendly multilingual macOS weather console with current conditions, seven-day
 - Optional city-level IP location in the first shortcut position
 - Configurable shortcut cities
 - Temperature, feels-like temperature, humidity, precipitation, wind and pressure
-- Bilingual 1–7 day forecasts with daily highs, lows and rain probability
+- Multilingual 1–7 day forecasts with daily highs, lows and rain probability
 - Interactive menu and command-line mode
 - Personal configuration and logs stored under `~/.voice-weather/`
 
