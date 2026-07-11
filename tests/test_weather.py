@@ -17,22 +17,17 @@ def test_chinese_script():
     assert "晴朗" in script
 
 
-class FakeWttrResponse:
+class FakeCurrentResponse:
     def raise_for_status(self):
         return None
 
     def json(self):
-        return {
-            "current_condition": [{
-                "temp_C": "20",
-                "FeelsLikeC": "19",
-                "precipMM": "0",
-                "humidity": "55",
-                "windspeedKmph": "12",
-                "pressure": "1013",
-                "weatherDesc": [{"value": "Sunny"}],
-            }],
-        }
+        return {"current": {
+            "temperature_2m": 20.2, "apparent_temperature": 18.7,
+            "precipitation": 0, "relative_humidity_2m": 55,
+            "wind_speed_10m": 12.1, "surface_pressure": 1013.2,
+            "weather_code": 0, "time": "2026-07-10T10:00",
+        }}
 
 
 class FakeGeocodingResponse:
@@ -58,10 +53,13 @@ class FakeForecastResponse:
 
 
 def test_fetch_weather_parses_response(monkeypatch):
-    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeWttrResponse())
+    def fake_get(url, **kwargs):
+        return FakeGeocodingResponse() if "geocoding" in url else FakeCurrentResponse()
+
+    monkeypatch.setattr(requests, "get", fake_get)
     weather = fetch_weather("Toronto")
     assert weather.temperature_c == "20"
-    assert weather.description == "Sunny"
+    assert weather.description == "Clear"
 
 
 def test_fetch_weather_wraps_network_errors(monkeypatch):

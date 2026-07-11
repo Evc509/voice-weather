@@ -2,6 +2,24 @@
 
 All notable changes to Voice Weather are documented here.
 
+## [2.0.0] - Unreleased
+
+### Added
+
+- Rich color interface with structured panels and weather tables.
+- First city slot reserved for an optional IP-derived local city.
+- Five selectable text and speech languages: Chinese, English, French, Spanish and Japanese.
+- Dynamic detection of installed macOS voices with text-only fallback.
+- Versioned settings with automatic migration of existing favorite cities.
+- Localized weather advice for precipitation, temperature extremes and strong wind.
+- Concise multilingual spoken summaries after interactive forecasts.
+
+### Changed
+
+- Reorganized the main menu around weather, forecasts, cities, language and settings.
+- Language and voice preferences persist between sessions.
+- Current conditions and forecasts now share the Open-Meteo data source for consistent results.
+
 ## [1.0.0] - 2026-07-10
 
 ### Added

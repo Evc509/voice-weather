@@ -2,11 +2,14 @@
 
 [![Tests](https://github.com/Evc509/voice-weather/actions/workflows/tests.yml/badge.svg)](https://github.com/Evc509/voice-weather/actions/workflows/tests.yml)
 
-A macOS bilingual weather console that fetches current conditions and reads them aloud in Mandarin or English.
+A friendly multilingual macOS weather console with current conditions, seven-day forecasts and native voice playback.
 
 ## Features
 
-- Mandarin and English speech using the built-in macOS `say` command
+- Chinese, English, French, Spanish and Japanese text and speech
+- Automatic selection from installed macOS `say` voices
+- Rich color panels and aligned weather tables
+- Optional city-level IP location in the first shortcut position
 - Configurable shortcut cities
 - Temperature, feels-like temperature, humidity, precipitation, wind and pressure
 - Bilingual 1–7 day forecasts with daily highs, lows and rain probability
@@ -52,7 +55,9 @@ voice-weather --city "Toronto" --forecast --days 7 --language zh
 voice-weather --city "Tokyo, Japan" --forecast --days 7 --language en
 ```
 
-Forecasts default to seven days. Forecast data is provided by [Open-Meteo](https://open-meteo.com/).
+Forecasts default to seven days. Current conditions and forecasts are provided by [Open-Meteo](https://open-meteo.com/).
+
+Supported interface and announcement languages are `zh`, `en`, `fr`, `es`, and `ja`. The interactive language screen shows the matching voice installed on the current Mac; if no suitable voice is installed, weather text remains available.
 
 Inspect the installation and configured shortcuts:
 
@@ -74,7 +79,7 @@ Every push and pull request is also tested automatically on Python 3.9–3.12 wi
 
 ## Privacy
 
-City preferences and logs remain outside the repository in `~/.voice-weather/`.
+City preferences and logs remain outside the repository in `~/.voice-weather/`. On first launch, location lookup is opt-in; if approved, wttr.in receives your network request and returns only city-level IP location data. You can decline and use manual cities instead.
 
 ## Changelog
 

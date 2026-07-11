@@ -60,38 +60,33 @@ WMO_DESCRIPTIONS = {
 }
 
 
-def _get_weather_data(city: str, timeout: int) -> dict:
+def fetch_weather(city: str, timeout: int = 10) -> Weather:
     try:
+        latitude, longitude = _geocode_city(city, timeout)
         response = requests.get(
-            f"https://wttr.in/{city}",
-            params={"format": "j1"},
-            headers={"User-Agent": "voice-weather/0.2.0"},
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "current": "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,surface_pressure",
+                "timezone": "auto",
+            },
+            headers={"User-Agent": "voice-weather/2.0.0"},
             timeout=timeout,
         )
         response.raise_for_status()
-        return response.json()
-    except (requests.RequestException, ValueError) as exc:
-        raise WeatherError(f"无法获取 {city} 的天气：{exc}") from exc
-
-
-def fetch_weather(city: str, timeout: int = 10) -> Weather:
-    try:
-        data = _get_weather_data(city, timeout)
-        current = data["current_condition"][0]
-        nearest = data.get("nearest_area", [{}])[0]
-        local_time = nearest.get("localObsDateTime") or current.get("localObsDateTime", "未知")
-        description = current.get("weatherDesc", [{"value": "Unknown"}])[0]["value"]
+        current = response.json()["current"]
         return Weather(
-            temperature_c=current["temp_C"],
-            feels_like_c=current.get("FeelsLikeC", current["temp_C"]),
-            precipitation_mm=current.get("precipMM", "0"),
-            humidity=current.get("humidity", "未知"),
-            wind_kph=current.get("windspeedKmph", "未知"),
-            pressure_hpa=current.get("pressure", "未知"),
-            description=description,
-            local_time=local_time,
+            temperature_c=str(round(current["temperature_2m"])),
+            feels_like_c=str(round(current["apparent_temperature"])),
+            precipitation_mm=str(current.get("precipitation", 0)),
+            humidity=str(current["relative_humidity_2m"]),
+            wind_kph=str(round(current["wind_speed_10m"])),
+            pressure_hpa=str(round(current["surface_pressure"])),
+            description=WMO_DESCRIPTIONS.get(current["weather_code"], "Unknown"),
+            local_time=current.get("time", "Unknown"),
         )
-    except (KeyError, IndexError, TypeError) as exc:
+    except (requests.RequestException, KeyError, IndexError, TypeError, ValueError) as exc:
         raise WeatherError(f"无法获取 {city} 的天气：{exc}") from exc
 
 
@@ -101,7 +96,7 @@ def _geocode_city(city: str, timeout: int) -> tuple[float, float]:
         response = requests.get(
             "https://geocoding-api.open-meteo.com/v1/search",
             params={"name": parts[0], "count": 10, "language": "en", "format": "json"},
-            headers={"User-Agent": "voice-weather/0.2.0"},
+            headers={"User-Agent": "voice-weather/2.0.0"},
             timeout=timeout,
         )
         response.raise_for_status()
@@ -138,7 +133,7 @@ def fetch_forecast(city: str, days: int = 7, timeout: int = 10) -> list[Forecast
                 "timezone": "auto",
                 "forecast_days": days,
             },
-            headers={"User-Agent": "voice-weather/0.2.0"},
+            headers={"User-Agent": "voice-weather/2.0.0"},
             timeout=timeout,
         )
         response.raise_for_status()
