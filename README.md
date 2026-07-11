@@ -18,7 +18,7 @@ A macOS bilingual weather console that fetches current conditions and reads them
 ## Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/voice-weather.git
+git clone https://github.com/Evc509/voice-weather.git
 cd voice-weather
 python3 -m venv .venv
 source .venv/bin/activate
