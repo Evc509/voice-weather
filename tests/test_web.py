@@ -3,6 +3,7 @@ import threading
 from urllib.request import Request, urlopen
 
 from voice_weather import web
+from voice_weather.weather import Weather
 
 
 def run_server(monkeypatch):
@@ -57,3 +58,11 @@ def test_city_add_api(monkeypatch):
         assert data["favorites"][0]["labels"]["fr"] == "Paris"
     finally:
         server.shutdown()
+
+
+def test_web_speech_uses_selected_language(monkeypatch):
+    sample = Weather("20", "19", "0", "55", "12", "1013", "Clear", "10:00")
+    monkeypatch.setattr(web, "fetch_weather", lambda city: sample)
+    text = web.build_web_speech("Paris, France", "Paris", "fr")
+    assert "Météo à Paris" in text
+    assert "degrés Celsius" in text

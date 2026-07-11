@@ -2,7 +2,7 @@
 
 All notable changes to Voice Weather are documented here.
 
-## [3.0.0] - Unreleased
+## [3.0.0] - 2026-07-11
 
 ### Added
 
@@ -24,6 +24,9 @@ All notable changes to Voice Weather are documented here.
 - Added geocoded city validation and language-specific display names when adding or replacing cities.
 - Added AQI, PM2.5, PM10, UV index and localized health guidance.
 - Forecast cards now show localized weekday and date, with expandable precipitation, wind, UV, sunrise and sunset details.
+- Web voice playback now uses the same fully localized announcement scripts as the terminal interface.
+
+[3.0.0]: https://github.com/Evc509/voice-weather/releases/tag/v3.0.0
 
 ## [2.0.1] - 2026-07-11
 

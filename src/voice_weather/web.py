@@ -11,6 +11,7 @@ from importlib.resources import files
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__
+from .app import build_script
 from .i18n import LANGUAGES, weather_text
 from .settings import display_cities, load_settings, save_settings
 from .speech import SpeechError, speak, voice_for
@@ -19,6 +20,11 @@ from .weather import WeatherError, fetch_forecast, fetch_weather, resolve_city
 HOST = "127.0.0.1"
 PORT = 8765
 STATIC_ROOT = files("voice_weather").joinpath("web_static")
+
+
+def build_web_speech(city: str, label: str, language: str) -> str:
+    weather = fetch_weather(city)
+    return build_script(city, label or city, weather, language)
 
 
 class WebHandler(BaseHTTPRequestHandler):
@@ -152,14 +158,16 @@ class WebHandler(BaseHTTPRequestHandler):
             save_settings(settings)
             return self.send_json({"ok": True, "favorites": favorites})
         if self.path == "/api/speak":
-            text = str(payload.get("text", ""))[:1200]
             language = payload.get("language", "en")
-            if not text:
-                return self.send_json({"error": "Missing text"}, 400)
+            city = str(payload.get("city", "")).strip()
+            label = str(payload.get("label", "")).strip()
             try:
+                text = build_web_speech(city, label, language) if city else str(payload.get("text", ""))[:1200]
+                if not text:
+                    return self.send_json({"error": "Missing text"}, 400)
                 threading.Thread(target=speak, args=(text, language), daemon=True).start()
                 return self.send_json({"ok": True})
-            except SpeechError as exc:
+            except (SpeechError, WeatherError) as exc:
                 return self.send_json({"error": str(exc)}, 422)
         return self.send_error(404)
 
