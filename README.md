@@ -64,6 +64,10 @@ Every push and pull request is also tested automatically on Python 3.9–3.12 wi
 
 City preferences and logs remain outside the repository in `~/.voice-weather/`.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
 ## License
 
 MIT
