@@ -27,11 +27,11 @@ def test_keyboard_interrupt_is_clean(monkeypatch, capsys):
 
 
 def test_forecast_command(monkeypatch, capsys):
-    monkeypatch.setattr("sys.argv", ["voice-weather", "--city", "Toronto", "--forecast", "--days", "1"])
+    monkeypatch.setattr("sys.argv", ["voice-weather", "--city", "Toronto", "--forecast", "--days", "7"])
     monkeypatch.setattr(
         app,
         "fetch_forecast",
-        lambda city, days: [ForecastDay("2026-07-10", "18", "27", "Sunny", "35")],
+        lambda city, days: [ForecastDay("2026-07-10", "18", "27", "Clear", "35")],
     )
     assert app.main() == 0
     output = capsys.readouterr().out

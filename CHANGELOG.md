@@ -6,9 +6,13 @@ All notable changes to Voice Weather are documented here.
 
 ### Added
 
-- Bilingual 1–3 day forecasts with daily high and low temperatures.
+- Bilingual 1–7 day forecasts with daily high and low temperatures, defaulting to seven days.
 - Maximum daily rain probability and a representative midday weather summary.
 - `--forecast` and `--days` command-line options.
+
+### Changed
+
+- Forecasts now use Open-Meteo for a reliable seven-day range; current conditions remain on wttr.in.
 
 ## [0.1.0] - 2026-07-10
 

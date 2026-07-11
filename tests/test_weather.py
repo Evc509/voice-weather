@@ -17,7 +17,7 @@ def test_chinese_script():
     assert "晴朗" in script
 
 
-class FakeResponse:
+class FakeWttrResponse:
     def raise_for_status(self):
         return None
 
@@ -32,20 +32,33 @@ class FakeResponse:
                 "pressure": "1013",
                 "weatherDesc": [{"value": "Sunny"}],
             }],
-            "weather": [{
-                "date": "2026-07-10",
-                "mintempC": "18",
-                "maxtempC": "27",
-                "hourly": [
-                    {"time": "0", "chanceofrain": "10", "weatherDesc": [{"value": "Clear"}]},
-                    {"time": "1200", "chanceofrain": "35", "weatherDesc": [{"value": "Sunny"}]},
-                ],
-            }],
         }
 
 
+class FakeGeocodingResponse:
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"results": [{"latitude": 43.65, "longitude": -79.38, "country": "Canada"}]}
+
+
+class FakeForecastResponse:
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"daily": {
+            "time": ["2026-07-10"],
+            "temperature_2m_min": [18.2],
+            "temperature_2m_max": [27.4],
+            "precipitation_probability_max": [35],
+            "weather_code": [0],
+        }}
+
+
 def test_fetch_weather_parses_response(monkeypatch):
-    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeResponse())
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeWttrResponse())
     weather = fetch_weather("Toronto")
     assert weather.temperature_c == "20"
     assert weather.description == "Sunny"
@@ -65,9 +78,12 @@ def test_fetch_weather_wraps_network_errors(monkeypatch):
 
 
 def test_fetch_forecast_parses_daily_summary(monkeypatch):
-    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeResponse())
+    def fake_get(url, **kwargs):
+        return FakeGeocodingResponse() if "geocoding" in url else FakeForecastResponse()
+
+    monkeypatch.setattr(requests, "get", fake_get)
     forecast = fetch_forecast("Toronto", days=1)
     assert forecast[0].date == "2026-07-10"
     assert forecast[0].max_c == "27"
-    assert forecast[0].description == "Sunny"
+    assert forecast[0].description == "Clear"
     assert forecast[0].rain_chance == "35"

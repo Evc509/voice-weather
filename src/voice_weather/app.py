@@ -10,6 +10,7 @@ from .weather import ForecastDay, Weather, WeatherError, fetch_forecast, fetch_w
 WEATHER_ZH = {
     "sunny": "晴朗",
     "clear": "晴朗",
+    "mainly clear": "大致晴朗",
     "partly cloudy": "局部多云",
     "cloudy": "多云",
     "overcast": "阴天",
@@ -22,6 +23,16 @@ WEATHER_ZH = {
     "moderate snow": "中雪",
     "heavy snow": "大雪",
     "thundery outbreaks possible": "可能有雷雨",
+    "light drizzle": "小毛毛雨",
+    "drizzle": "毛毛雨",
+    "heavy drizzle": "较强毛毛雨",
+    "rime fog": "雾凇",
+    "light rain showers": "小阵雨",
+    "rain showers": "阵雨",
+    "heavy rain showers": "强阵雨",
+    "light snow showers": "小阵雪",
+    "heavy snow showers": "强阵雪",
+    "thunderstorm": "雷暴",
 }
 
 
@@ -136,8 +147,8 @@ def main() -> int:
     parser.add_argument("--language", choices=["zh", "en"], default="zh")
     parser.add_argument("--no-speech", action="store_true", help="Print without speaking")
     parser.add_argument("--list-cities", action="store_true", help="List configured shortcut cities")
-    parser.add_argument("--forecast", action="store_true", help="Show a 1-3 day forecast (requires --city)")
-    parser.add_argument("--days", type=int, choices=range(1, 4), default=3, metavar="1-3")
+    parser.add_argument("--forecast", action="store_true", help="Show a 1-7 day forecast (requires --city)")
+    parser.add_argument("--days", type=int, choices=range(1, 8), default=7, metavar="1-7")
     args = parser.parse_args()
     try:
         if args.list_cities:

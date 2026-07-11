@@ -9,7 +9,7 @@ A macOS bilingual weather console that fetches current conditions and reads them
 - Mandarin and English speech using the built-in macOS `say` command
 - Configurable shortcut cities
 - Temperature, feels-like temperature, humidity, precipitation, wind and pressure
-- Bilingual 1–3 day forecasts with daily highs, lows and rain probability
+- Bilingual 1–7 day forecasts with daily highs, lows and rain probability
 - Interactive menu and command-line mode
 - Personal configuration and logs stored under `~/.voice-weather/`
 
@@ -46,9 +46,11 @@ voice-weather --city "Tokyo, Japan" --language en --no-speech
 Forecast mode:
 
 ```bash
-voice-weather --city "Toronto" --forecast --days 3 --language zh
-voice-weather --city "Tokyo, Japan" --forecast --days 2 --language en
+voice-weather --city "Toronto" --forecast --days 7 --language zh
+voice-weather --city "Tokyo, Japan" --forecast --days 7 --language en
 ```
+
+Forecasts default to seven days. Forecast data is provided by [Open-Meteo](https://open-meteo.com/).
 
 Inspect the installation and configured shortcuts:
 
