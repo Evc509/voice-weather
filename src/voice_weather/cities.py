@@ -1,4 +1,6 @@
 import json
+import shutil
+from datetime import datetime
 from pathlib import Path
 
 from .config import CITIES_FILE, DEFAULT_CITIES
@@ -10,16 +12,27 @@ def load_cities(path: Path = CITIES_FILE) -> list[dict[str, str]]:
         return [item.copy() for item in DEFAULT_CITIES]
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(data, list) or not all(
+        if not data or not isinstance(data, list) or not all(
             isinstance(x, dict) and x.get("city") and x.get("zh") for x in data
         ):
             raise ValueError("invalid city configuration")
         return data
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
-        raise RuntimeError(f"无法读取城市配置 {path}: {exc}") from exc
+    except (OSError, json.JSONDecodeError, ValueError):
+        backup = path.with_name(f"{path.stem}.invalid-{datetime.now():%Y%m%d-%H%M%S}{path.suffix}")
+        try:
+            shutil.copy2(path, backup)
+        except OSError:
+            pass
+        save_cities(DEFAULT_CITIES, path)
+        return [item.copy() for item in DEFAULT_CITIES]
 
 
 def save_cities(cities: list[dict[str, str]], path: Path = CITIES_FILE) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(cities, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
+
+def reset_cities(path: Path = CITIES_FILE) -> list[dict[str, str]]:
+    cities = [item.copy() for item in DEFAULT_CITIES]
+    save_cities(cities, path)
+    return cities

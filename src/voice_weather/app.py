@@ -1,8 +1,9 @@
 import argparse
 from datetime import datetime
+from typing import Optional, Tuple
 
 from . import __version__
-from .cities import load_cities, save_cities
+from .cities import load_cities, reset_cities, save_cities
 from .config import LOG_FILE
 from .speech import SpeechError, speak
 from .weather import ForecastDay, Weather, WeatherError, fetch_forecast, fetch_weather
@@ -78,8 +79,49 @@ def print_forecast(city: str, forecast: list[ForecastDay], language: str) -> Non
             print(f"{day.date}   {temperatures:<10}  {day.rain_chance:>3}%   {day.description}")
 
 
+def show_cities(cities: list[dict[str, str]], title: str = "快捷城市") -> None:
+    print(f"\n🏙️  {title}")
+    print("-" * 42)
+    for index, item in enumerate(cities, 1):
+        print(f"[{index}] {item['city']} ({item['zh']})")
+
+
+def choose_city(cities: list[dict[str, str]]) -> Optional[Tuple[str, str]]:
+    show_cities(cities, "选择城市")
+    print("[M] 手动输入其他城市")
+    print("[0] 返回主菜单")
+    raw = input("请选择城市: ").strip().lower()
+    if raw == "0":
+        return None
+    if raw == "m":
+        city = input("请输入城市和国家（例如 Paris, France）: ").strip()
+        if not city:
+            print("❌ 城市不能为空")
+            return None
+        city_zh = input("请输入中文城市名（可留空）: ").strip() or city
+        return city, city_zh
+    if raw.isdigit() and 1 <= int(raw) <= len(cities):
+        selected = cities[int(raw) - 1]
+        return selected["city"], selected["zh"]
+    print("❌ 城市编号无效")
+    return None
+
+
+def choose_language(label: str = "语言") -> Optional[str]:
+    raw = input(f"{label} [1] 中文  [2] English  [0] 返回（默认 1）: ").strip() or "1"
+    if raw == "0":
+        return None
+    if raw not in {"1", "2"}:
+        print("❌ 语言选择无效")
+        return None
+    return "zh" if raw == "1" else "en"
+
+
 def edit_city(cities: list[dict[str, str]]) -> None:
-    raw = input(f"修改编号 (1-{len(cities)}): ").strip()
+    show_cities(cities, "修改快捷城市")
+    raw = input(f"修改编号 (1-{len(cities)})，输入 0 返回: ").strip()
+    if raw == "0":
+        return
     if not raw.isdigit() or not 1 <= int(raw) <= len(cities):
         print("❌ 编号无效")
         return
@@ -93,63 +135,79 @@ def edit_city(cities: list[dict[str, str]]) -> None:
     print("✅ 城市配置已保存")
 
 
+def manage_cities(cities: list[dict[str, str]]) -> None:
+    while True:
+        show_cities(cities, "管理快捷城市")
+        print("[1] 修改一个城市")
+        print("[2] 恢复默认城市")
+        print("[0] 返回主菜单")
+        choice = input("请选择: ").strip()
+        if choice == "0":
+            return
+        if choice == "1":
+            edit_city(cities)
+            cities[:] = load_cities()
+        elif choice == "2":
+            confirm = input("确定恢复默认城市？[y/N]: ").strip().lower()
+            if confirm == "y":
+                cities[:] = reset_cities()
+                print("✅ 已恢复默认城市列表")
+        else:
+            print("❌ 请选择 0、1 或 2")
+
+
 def interactive_forecast(cities: list[dict[str, str]]) -> None:
-    print("\n📅 七日天气预报")
-    for index, item in enumerate(cities, 1):
-        print(f"{index}. {item['city']} ({item['zh']})")
-    raw_city = input("城市编号或其他城市名: ").strip()
-    if raw_city.isdigit() and 1 <= int(raw_city) <= len(cities):
-        city = cities[int(raw_city) - 1]["city"]
-    elif raw_city:
-        city = raw_city
-    else:
-        print("❌ 城市不能为空")
+    selected = choose_city(cities)
+    if selected is None:
         return
-    language_choice = input("显示语言 1. 中文  2. English [1]: ").strip() or "1"
-    if language_choice not in {"1", "2"}:
-        print("❌ 语言选择无效")
+    city, _ = selected
+    language = choose_language("显示语言")
+    if language is None:
         return
     raw_days = input("预报天数 1-7 [7]: ").strip() or "7"
     if not raw_days.isdigit() or not 1 <= int(raw_days) <= 7:
         print("❌ 天数必须是 1 到 7")
         return
     forecast = fetch_forecast(city, int(raw_days))
-    print_forecast(city, forecast, "zh" if language_choice == "1" else "en")
+    print_forecast(city, forecast, language)
+
+
+def interactive_current(cities: list[dict[str, str]]) -> None:
+    selected = choose_city(cities)
+    if selected is None:
+        return
+    language = choose_language("播报语言")
+    if language is None:
+        return
+    city, city_zh = selected
+    run(city, city_zh, language)
 
 
 def interactive() -> int:
     while True:
         cities = load_cities()
-        print("\n🎙️ Canada Universal Bilingual Weather Console")
-        for index, item in enumerate(cities, 1):
-            print(f"{index}. {item['city']} ({item['zh']})")
-        print("m. 手动输入   f. 七日预报   e. 修改城市   q. 退出")
-        choice = input("请选择: ").strip().lower()
-        if choice == "q":
+        print("\n" + "=" * 50)
+        print(f"🎙️ Voice Weather v{__version__} · 双语语音天气")
+        print("=" * 50)
+        print("[1] 实时天气与语音播报")
+        print("[2] 1–7 天天气预报")
+        print("[3] 管理快捷城市")
+        print("[4] 查看快捷城市")
+        print("[0] 退出")
+        choice = input("请选择功能: ").strip()
+        if choice == "0":
+            print("再见！")
             return 0
-        if choice == "e":
-            edit_city(cities)
-            continue
-        if choice == "f":
+        if choice == "1":
+            interactive_current(cities)
+        elif choice == "2":
             interactive_forecast(cities)
-            continue
-        if choice == "m":
-            city = input("城市和国家: ").strip()
-            if not city:
-                print("❌ 城市不能为空")
-                continue
-            city_zh = input("中文城市名（可留空）: ").strip() or city
-        elif choice.isdigit() and 1 <= int(choice) <= len(cities):
-            selected = cities[int(choice) - 1]
-            city, city_zh = selected["city"], selected["zh"]
+        elif choice == "3":
+            manage_cities(cities)
+        elif choice == "4":
+            show_cities(cities)
         else:
-            print("❌ 选择无效")
-            continue
-        language = input("播报语言 1. 中文  2. English: ").strip()
-        if language not in {"1", "2"}:
-            print("❌ 语言选择无效")
-            continue
-        run(city, city_zh, "zh" if language == "1" else "en")
+            print("❌ 请选择 0 到 4")
 
 
 def run(city: str, city_zh: str, language: str, no_speech: bool = False) -> int:

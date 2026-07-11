@@ -2,7 +2,7 @@
 
 All notable changes to Voice Weather are documented here.
 
-## [0.2.0] - Unreleased
+## [1.0.0] - 2026-07-10
 
 ### Added
 
@@ -14,6 +14,11 @@ All notable changes to Voice Weather are documented here.
 ### Changed
 
 - Forecasts now use Open-Meteo for a reliable seven-day range; current conditions remain on wttr.in.
+- Replaced the mixed city/action prompt with a consistent numbered two-level menu.
+- City selection always displays the complete list beginning with `[1]` and includes manual entry and return actions.
+- Invalid city configuration is backed up automatically before restoring safe defaults.
+
+[1.0.0]: https://github.com/Evc509/voice-weather/releases/tag/v1.0.0
 
 ## [0.1.0] - 2026-07-10
 

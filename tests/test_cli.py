@@ -9,7 +9,7 @@ def test_version(monkeypatch, capsys):
     with pytest.raises(SystemExit) as exc:
         app.main()
     assert exc.value.code == 0
-    assert "voice-weather 0.2.0" in capsys.readouterr().out
+    assert "voice-weather 1.0.0" in capsys.readouterr().out
 
 
 def test_list_cities(monkeypatch, capsys):
@@ -54,7 +54,23 @@ def test_interactive_forecast_uses_defaults(monkeypatch, capsys):
 
 
 def test_interactive_forecast_rejects_bad_days(monkeypatch, capsys):
-    answers = iter(["Toronto", "2", "8"])
+    answers = iter(["m", "Toronto", "", "2", "8"])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
     app.interactive_forecast([])
     assert "天数必须是 1 到 7" in capsys.readouterr().out
+
+
+def test_city_selector_always_lists_first_city(monkeypatch, capsys):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "0")
+    assert app.choose_city([{"city": "Toronto", "zh": "多伦多"}]) is None
+    assert "[1] Toronto (多伦多)" in capsys.readouterr().out
+
+
+def test_main_menu_has_numbered_city_entry(monkeypatch, capsys):
+    answers = iter(["4", "0"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    monkeypatch.setattr(app, "load_cities", lambda: [{"city": "Toronto", "zh": "多伦多"}])
+    assert app.interactive() == 0
+    output = capsys.readouterr().out
+    assert "[1] 实时天气与语音播报" in output
+    assert "[1] Toronto (多伦多)" in output

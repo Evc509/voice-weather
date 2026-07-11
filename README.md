@@ -36,7 +36,7 @@ Interactive mode:
 voice-weather
 ```
 
-The interactive menu includes current voice weather, a seven-day forecast, and shortcut-city editing.
+The numbered interactive menu separates current weather, forecasts, city management and city listing. Every city-selection screen starts at `[1]`, supports manual entry, and provides a clear return option.
 
 One-shot mode:
 
