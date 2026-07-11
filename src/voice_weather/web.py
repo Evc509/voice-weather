@@ -68,6 +68,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 "voice": voice_for(settings["language"]),
                 "languages": LANGUAGES,
                 "cities": display_cities(settings),
+                "favorites": settings.get("favorites", []),
             })
         query = parse_qs(parsed.query)
         city = query.get("city", [""])[0].strip()
@@ -106,6 +107,32 @@ class WebHandler(BaseHTTPRequestHandler):
                 settings["voice_enabled"] = payload["voice_enabled"]
             save_settings(settings)
             return self.send_json({"ok": True})
+        if self.path == "/api/cities":
+            settings = load_settings()
+            favorites = settings.setdefault("favorites", [])
+            action = payload.get("action")
+            city = str(payload.get("city", "")).strip()
+            zh = str(payload.get("zh", "")).strip() or city
+            try:
+                index = int(payload.get("index", -1))
+            except (TypeError, ValueError):
+                index = -1
+            if action == "add":
+                if not city:
+                    return self.send_json({"error": "City is required"}, 400)
+                if any(item.get("city", "").casefold() == city.casefold() for item in favorites):
+                    return self.send_json({"error": "City already exists"}, 409)
+                favorites.append({"city": city, "zh": zh})
+            elif action == "replace" and 0 <= index < len(favorites):
+                if not city:
+                    return self.send_json({"error": "City is required"}, 400)
+                favorites[index] = {"city": city, "zh": zh}
+            elif action == "delete" and 0 <= index < len(favorites):
+                favorites.pop(index)
+            else:
+                return self.send_json({"error": "Invalid city action"}, 400)
+            save_settings(settings)
+            return self.send_json({"ok": True, "favorites": favorites})
         if self.path == "/api/speak":
             text = str(payload.get("text", ""))[:1200]
             language = payload.get("language", "en")

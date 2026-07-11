@@ -15,6 +15,13 @@ All notable changes to Voice Weather are documented here.
 
 - Web service binds exclusively to `127.0.0.1` and is not exposed to the local network.
 
+### Improved
+
+- Language changes now reload the full page so every label and subsequent view stays consistent.
+- Removed explanatory sublabels beneath city names for a cleaner sidebar.
+- Replaced the small legacy default list with geographically distributed cities across seven world regions.
+- Added persistent add, replace and delete operations for favorite cities.
+
 ## [2.0.1] - 2026-07-11
 
 ### Added

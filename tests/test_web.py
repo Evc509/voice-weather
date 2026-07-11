@@ -1,6 +1,6 @@
 import json
 import threading
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from voice_weather import web
 
@@ -40,3 +40,18 @@ def test_state_api(monkeypatch):
 
 def test_server_is_localhost_only():
     assert web.HOST == "127.0.0.1"
+
+
+def test_city_add_api(monkeypatch):
+    settings = {"version": 3, "language": "en", "voice_enabled": True, "local_city": None, "favorites": []}
+    monkeypatch.setattr(web, "load_settings", lambda: settings)
+    monkeypatch.setattr(web, "save_settings", lambda data: None)
+    server = web.ThreadingHTTPServer((web.HOST, 0), web.WebHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        payload = json.dumps({"action": "add", "city": "Paris, France", "zh": "巴黎"}).encode()
+        request = Request(f"http://{web.HOST}:{server.server_port}/api/cities", data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        data = json.loads(urlopen(request, timeout=2).read())
+        assert data["favorites"][0]["city"] == "Paris, France"
+    finally:
+        server.shutdown()
