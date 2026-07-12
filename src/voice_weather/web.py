@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 from . import __version__
 from .app import build_script
 from .i18n import LANGUAGES, weather_text
-from .settings import display_cities, load_settings, save_settings
+from .settings import MAX_FAVORITES, cities_match, display_cities, load_settings, save_settings
 from .speech import SpeechError, speak, stop_speech, voice_for
 from .weather import Weather, WeatherError, city_metadata, fetch_forecast, fetch_forecast_at, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
 
@@ -35,6 +35,17 @@ class LocalThreadingHTTPServer(ThreadingHTTPServer):
 
 
 WEATHER_FIELDS = tuple(field.name for field in fields(Weather))
+CITY_MESSAGES = {
+    "zh": {"duplicate": "该城市已经在列表中", "limit": f"城市列表最多保存 {MAX_FAVORITES} 个城市"},
+    "en": {"duplicate": "This city is already in the list", "limit": f"The city list is limited to {MAX_FAVORITES} cities"},
+    "fr": {"duplicate": "Cette ville est déjà dans la liste", "limit": f"La liste est limitée à {MAX_FAVORITES} villes"},
+    "es": {"duplicate": "Esta ciudad ya está en la lista", "limit": f"La lista está limitada a {MAX_FAVORITES} ciudades"},
+    "ja": {"duplicate": "この都市はすでにリストにあります", "limit": f"都市は最大 {MAX_FAVORITES} 件までです"},
+}
+
+
+def city_message(language: str, key: str) -> str:
+    return CITY_MESSAGES.get(language, CITY_MESSAGES["en"])[key]
 
 
 def weather_from_payload(payload) -> Optional[Weather]:
@@ -146,6 +157,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 "languages": LANGUAGES,
                 "cities": display_cities(settings),
                 "favorites": settings.get("favorites", []),
+                "max_favorites": MAX_FAVORITES,
             })
         query = parse_qs(parsed.query)
         city = query.get("city", [""])[0].strip()
@@ -166,7 +178,19 @@ class WebHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/cities/search":
             term = query.get("q", [""])[0].strip()
             try:
-                return self.send_json({"results": search_cities(term, language)})
+                results = search_cities(term, language)
+                settings = load_settings()
+                existing_ids = {item.get("location_id") for item in settings.get("favorites", [])}
+                existing_names = {
+                    str(item.get("labels", {}).get(language, "")).strip().casefold()
+                    for item in settings.get("favorites", [])
+                }
+                for result in results:
+                    result["duplicate"] = (
+                        result["location_id"] in existing_ids
+                        or result["name"].strip().casefold() in existing_names
+                    )
+                return self.send_json({"results": results, "max_favorites": MAX_FAVORITES})
             except WeatherError as exc:
                 return self.send_json({"error": str(exc)}, 502)
         if parsed.path == "/api/forecast" and city:
@@ -200,23 +224,26 @@ class WebHandler(BaseHTTPRequestHandler):
             settings = load_settings()
             favorites = settings.setdefault("favorites", [])
             action = payload.get("action")
+            language = settings.get("language", "en")
             try:
                 index = int(payload.get("index", -1))
             except (TypeError, ValueError):
                 index = -1
             if action == "add":
                 try:
-                    metadata = city_metadata(int(payload["location_id"]))
+                    location_id = int(payload["location_id"])
                 except (KeyError, TypeError, ValueError):
                     return self.send_json({"error": "A confirmed search result is required"}, 400)
+                if any(item.get("location_id") == location_id for item in favorites):
+                    return self.send_json({"error": city_message(language, "duplicate")}, 409)
+                if len(favorites) >= MAX_FAVORITES:
+                    return self.send_json({"error": city_message(language, "limit")}, 409)
+                try:
+                    metadata = city_metadata(location_id)
                 except WeatherError as exc:
                     return self.send_json({"error": str(exc)}, 422)
-                if any(
-                    item.get("location_id") == metadata["location_id"]
-                    or item.get("city", "").casefold() == metadata["city"].casefold()
-                    for item in favorites
-                ):
-                    return self.send_json({"error": "City already exists"}, 409)
+                if any(cities_match(item, metadata) for item in favorites):
+                    return self.send_json({"error": city_message(language, "duplicate")}, 409)
                 metadata["zh"] = metadata["labels"]["zh"]
                 favorites.append(metadata)
             elif action == "delete" and 0 <= index < len(favorites):

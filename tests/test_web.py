@@ -1,6 +1,10 @@
 import json
 import threading
+from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
+
+import pytest
 
 from voice_weather import web
 from voice_weather.weather import Weather
@@ -23,7 +27,7 @@ def test_home_page(monkeypatch):
     try:
         body = urlopen(base, timeout=2).read().decode()
         assert "Voice Weather" in body
-        assert "/static/app.js?v=320-city-sync" in body
+        assert "/static/app.js?v=320-final" in body
     finally:
         server.shutdown()
 
@@ -31,10 +35,18 @@ def test_home_page(monkeypatch):
 def test_static_assets_disable_browser_cache(monkeypatch):
     server, base = run_server(monkeypatch)
     try:
-        response = urlopen(base + "/static/app.js?v=320-city-sync", timeout=2)
+        response = urlopen(base + "/static/app.js?v=320-final", timeout=2)
         assert response.headers["Cache-Control"] == "no-store"
     finally:
         server.shutdown()
+
+
+def test_frontend_guards_weather_and_speech_against_stale_city_requests():
+    script = web.STATIC_ROOT.joinpath("app.js").read_text(encoding="utf-8")
+    assert "activeController.abort()" in script
+    assert "currentSnapshot=null" in script
+    assert "requestNumber!==loadNumber" in script
+    assert "snapshot.city!==currentCity" in script
 
 
 def test_state_api(monkeypatch):
@@ -44,6 +56,7 @@ def test_state_api(monkeypatch):
         assert data["version"] == "3.2.0"
         assert data["cities"][0]["city"] == "Toronto"
         assert data["voice"] == "Samantha"
+        assert data["max_favorites"] == 20
     finally:
         server.shutdown()
 
@@ -122,3 +135,93 @@ def test_repairs_legacy_localized_city_with_location_id(monkeypatch):
     assert web.repair_city_entry(city, "zh") is True
     assert city["city"] == "Toronto, Ontario, Canada"
     assert city["labels"]["en"] == "Toronto"
+
+
+def test_city_add_rejects_duplicate_id_before_metadata_lookup(monkeypatch):
+    settings = {"version": 5, "language": "zh", "favorites": [{"city": "Beijing", "location_id": 1816670}]}
+    monkeypatch.setattr(web, "load_settings", lambda: settings)
+    monkeypatch.setattr(web, "city_metadata", lambda location_id: (_ for _ in ()).throw(AssertionError("unnecessary lookup")))
+    server = web.ThreadingHTTPServer((web.HOST, 0), web.WebHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        payload = json.dumps({"action": "add", "location_id": 1816670}).encode()
+        request = Request(f"http://{web.HOST}:{server.server_port}/api/cities", data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        with pytest.raises(HTTPError) as exc_info:
+            urlopen(request, timeout=2)
+        assert exc_info.value.code == 409
+        assert "已经" in exc_info.value.read().decode()
+    finally:
+        server.shutdown()
+
+
+def test_city_search_marks_same_visible_name_as_already_added(monkeypatch):
+    monkeypatch.setattr(web, "load_settings", lambda: {
+        "version": 5,
+        "language": "zh",
+        "favorites": [{"city": "Beijing, China", "labels": {"zh": "北京", "en": "Beijing"}}],
+    })
+    monkeypatch.setattr(web, "search_cities", lambda *args: [{
+        "location_id": 8404324,
+        "name": "北京",
+        "region": "重庆",
+        "country": "中国",
+        "latitude": 30.72,
+        "longitude": 108.67,
+    }])
+    server = web.ThreadingHTTPServer((web.HOST, 0), web.WebHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        data = json.loads(urlopen(f"http://{web.HOST}:{server.server_port}/api/cities/search?q={quote('北京')}&language=zh", timeout=2).read())
+        assert data["results"][0]["duplicate"] is True
+        assert data["max_favorites"] == web.MAX_FAVORITES
+    finally:
+        server.shutdown()
+
+
+def test_city_add_rejects_same_visible_name_at_different_coordinates(monkeypatch):
+    settings = {"version": 5, "language": "en", "favorites": [{
+        "city": "Beijing, Beijing Municipality, China",
+        "labels": {"en": "Beijing", "zh": "北京"},
+        "latitude": 39.9075,
+        "longitude": 116.39723,
+    }]}
+    monkeypatch.setattr(web, "load_settings", lambda: settings)
+    monkeypatch.setattr(web, "city_metadata", lambda location_id: {
+        "city": "Beijing, Chongqing Municipality, China",
+        "labels": {"en": "Beijing", "zh": "北京", "fr": "Beijing", "es": "Beijing", "ja": "Beijing"},
+        "latitude": 30.72608,
+        "longitude": 108.67483,
+        "location_id": location_id,
+    })
+    server = web.ThreadingHTTPServer((web.HOST, 0), web.WebHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        payload = json.dumps({"action": "add", "location_id": 8404324}).encode()
+        request = Request(f"http://{web.HOST}:{server.server_port}/api/cities", data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        with pytest.raises(HTTPError) as exc_info:
+            urlopen(request, timeout=2)
+        assert exc_info.value.code == 409
+        assert "already" in exc_info.value.read().decode()
+    finally:
+        server.shutdown()
+
+
+def test_city_add_enforces_resource_limit_before_metadata_lookup(monkeypatch):
+    settings = {
+        "version": 5,
+        "language": "en",
+        "favorites": [{"city": f"City {index}"} for index in range(web.MAX_FAVORITES)],
+    }
+    monkeypatch.setattr(web, "load_settings", lambda: settings)
+    monkeypatch.setattr(web, "city_metadata", lambda location_id: (_ for _ in ()).throw(AssertionError("unnecessary lookup")))
+    server = web.ThreadingHTTPServer((web.HOST, 0), web.WebHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        payload = json.dumps({"action": "add", "location_id": 999}).encode()
+        request = Request(f"http://{web.HOST}:{server.server_port}/api/cities", data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        with pytest.raises(HTTPError) as exc_info:
+            urlopen(request, timeout=2)
+        assert exc_info.value.code == 409
+        assert "20" in exc_info.value.read().decode()
+    finally:
+        server.shutdown()

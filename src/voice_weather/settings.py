@@ -5,6 +5,7 @@ from pathlib import Path
 from .config import APP_DIR, CITIES_FILE, DEFAULT_CITIES
 
 SETTINGS_FILE = APP_DIR / "settings.json"
+MAX_FAVORITES = 20
 WORLD_FAVORITES = [
     {"city":"Toronto, Canada","zh":"多伦多","labels":{"zh":"多伦多","en":"Toronto","fr":"Toronto","es":"Toronto","ja":"トロント"}},
     {"city":"Vancouver, Canada","zh":"温哥华","labels":{"zh":"温哥华","en":"Vancouver","fr":"Vancouver","es":"Vancouver","ja":"バンクーバー"}},
@@ -31,6 +32,38 @@ DEFAULT_SETTINGS = {
 }
 
 
+def _city_name_keys(city: dict) -> set[str]:
+    labels = city.get("labels") if isinstance(city.get("labels"), dict) else {}
+    names = [labels.get("en"), labels.get("zh")]
+    if not any(names):
+        names.extend((city.get("zh"), city.get("city", "").split(",")[0]))
+    return {str(name).strip().casefold() for name in names if str(name or "").strip()}
+
+
+def cities_match(first: dict, second: dict) -> bool:
+    """Return True when two records would represent the same visible shortcut."""
+    first_id, second_id = first.get("location_id"), second.get("location_id")
+    if first_id is not None and second_id is not None and first_id == second_id:
+        return True
+    try:
+        distance = abs(float(first["latitude"]) - float(second["latitude"])) + abs(
+            float(first["longitude"]) - float(second["longitude"])
+        )
+        if distance <= 0.03:
+            return True
+    except (KeyError, TypeError, ValueError):
+        pass
+    return bool(_city_name_keys(first) & _city_name_keys(second))
+
+
+def deduplicate_favorites(favorites: list[dict]) -> list[dict]:
+    unique = []
+    for city in favorites:
+        if isinstance(city, dict) and not any(cities_match(city, existing) for existing in unique):
+            unique.append(city)
+    return unique
+
+
 def load_settings(path: Path = SETTINGS_FILE, legacy_path: Path = CITIES_FILE) -> dict:
     if path.exists():
         try:
@@ -50,6 +83,7 @@ def load_settings(path: Path = SETTINGS_FILE, legacy_path: Path = CITIES_FILE) -
                     beijing = next(item for item in WORLD_FAVORITES if item["city"].startswith("Beijing,"))
                     data["favorites"] = [deepcopy(beijing) if item.get("city", "").split(",")[0].strip() == "北京" else item for item in data["favorites"]]
                     data["version"] = 5
+                data["favorites"] = deduplicate_favorites(data["favorites"])
                 save_settings(data, path)
                 return data
         except (OSError, ValueError, AttributeError):
@@ -78,10 +112,9 @@ def display_cities(settings: dict) -> list[dict]:
         cities.append({**local, "local": True})
     else:
         cities.append({"city": "Set current location", "zh": "设置当前位置", "local": True, "unset": True})
-    local_name = local["city"].split(",")[0].strip().lower() if local else ""
     cities.extend(
         {**item, "local": False}
         for item in settings.get("favorites", [])
-        if item.get("city", "").split(",")[0].strip().lower() != local_name
+        if not local or not cities_match(local, item)
     )
     return cities

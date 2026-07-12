@@ -11,6 +11,10 @@
 - Store Open-Meteo location IDs and resolve canonical city data consistently in all five languages.
 - Repair older coordinate-backed cities that are missing translated labels.
 - Force fresh static assets after language changes and localize the weather refresh control.
+- Cancel obsolete city requests and keep the play button disabled until the selected city's snapshot is complete.
+- Prevent duplicate shortcuts by location ID, nearby coordinates and visible city names.
+- Limit new favorites to 20 and flag duplicate search results before confirmation.
+- Improve primary-button contrast in both light and dark appearance.
 
 All notable changes to Voice Weather are documented here.
 

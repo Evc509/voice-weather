@@ -1,7 +1,7 @@
 import json
 
 from voice_weather.config import DEFAULT_CITIES
-from voice_weather.settings import WORLD_FAVORITES, display_cities, load_settings, save_settings
+from voice_weather.settings import MAX_FAVORITES, WORLD_FAVORITES, cities_match, display_cities, load_settings, save_settings
 
 
 def test_migrates_legacy_cities(tmp_path):
@@ -55,3 +55,23 @@ def test_corrupt_beijing_country_label_is_repaired(tmp_path):
     assert data["version"] == 5
     assert data["favorites"][0]["labels"]["zh"] == "北京"
     assert data["favorites"][0]["labels"]["fr"] == "Pékin"
+
+
+def test_same_visible_city_name_is_treated_as_duplicate():
+    capital = {"city": "Beijing, China", "labels": {"zh": "北京", "en": "Beijing"}, "latitude": 39.90, "longitude": 116.40}
+    namesake = {"city": "Beijing, Chongqing, China", "labels": {"zh": "北京", "en": "Beijing"}, "latitude": 30.72, "longitude": 108.67}
+    assert cities_match(capital, namesake)
+
+
+def test_load_settings_removes_duplicate_names_without_deleting_legacy_cities(tmp_path):
+    path = tmp_path / "settings.json"
+    favorites = [
+        {"city": f"City {index}", "labels": {"en": f"City {index}", "zh": f"城市 {index}"}}
+        for index in range(MAX_FAVORITES + 2)
+    ]
+    favorites.insert(1, {"city": "Other Beijing", "labels": {"en": "City 0", "zh": "另一个北京"}})
+    save_settings({"version": 5, "language": "en", "favorites": favorites}, path)
+
+    data = load_settings(path, tmp_path / "missing.json")
+    assert len(data["favorites"]) == MAX_FAVORITES + 2
+    assert sum(item["labels"]["en"] == "City 0" for item in data["favorites"]) == 1

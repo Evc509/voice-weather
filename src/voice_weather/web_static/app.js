@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
-let state, currentCity, currentWeather;
+let state, currentCity, currentSnapshot, activeController;
+let loadNumber=0;
 
 const icons = {Clear:'☀', Sunny:'☀', 'Mainly clear':'🌤', 'Partly cloudy':'⛅', Overcast:'☁', Fog:'≋', 'Light rain':'🌦', 'Moderate rain':'🌧', 'Heavy rain':'🌧', 'Light snow':'🌨', 'Moderate snow':'❄', Thunderstorm:'⛈'};
 const locales = {zh:'zh-CN', en:'en-CA', fr:'fr-FR', es:'es-ES', ja:'ja-JP'};
@@ -11,11 +12,11 @@ const ui = {
   ja:{language:'言語',places:'場所',cities:'都市',feels:'体感温度',humidity:'湿度',wind:'風速',pressure:'気圧',outlook:'予報',forecast:'7日間予報',play:'天気を再生',refresh:'天気を更新'}
 };
 const cityUi = {
-  en:['Add a city','City, region or country','Search','Search first, then confirm one available location.','Add selected city','Delete this city?'],
-  zh:['添加城市','城市、地区或国家','查找','请先查找，再确认一个可用地点。','添加所选城市','确定删除这个城市吗？'],
-  fr:['Ajouter une ville','Ville, région ou pays','Rechercher','Recherchez puis confirmez un lieu disponible.','Ajouter la ville sélectionnée','Supprimer cette ville ?'],
-  es:['Añadir ciudad','Ciudad, región o país','Buscar','Busque y confirme una ubicación disponible.','Añadir ciudad seleccionada','¿Eliminar esta ciudad?'],
-  ja:['都市を追加','都市、地域、国','検索','検索して利用可能な場所を確認してください。','選択した都市を追加','この都市を削除しますか？']
+  en:['Add a city','City, region or country','Search','Search first, then confirm one available location.','Add selected city','Delete this city?','Already added'],
+  zh:['添加城市','城市、地区或国家','查找','请先查找，再确认一个可用地点。','添加所选城市','确定删除这个城市吗？','已经添加'],
+  fr:['Ajouter une ville','Ville, région ou pays','Rechercher','Recherchez puis confirmez un lieu disponible.','Ajouter la ville sélectionnée','Supprimer cette ville ?','Déjà ajoutée'],
+  es:['Añadir ciudad','Ciudad, región o país','Buscar','Busque y confirme una ubicación disponible.','Añadir ciudad seleccionada','¿Eliminar esta ciudad?','Ya añadida'],
+  ja:['都市を追加','都市、地域、国','検索','検索して利用可能な場所を確認してください。','選択した都市を追加','この都市を削除しますか？','追加済み']
 };
 const healthUi = {
   en:{aqi:'Air quality',uv:'UV index',good:'Air quality is good.',moderate:'Sensitive people should limit prolonged outdoor activity.',poor:'Consider reducing outdoor activity.',highUv:'UV is high; use sun protection.',rain:'Precipitation',wind:'Max wind',sunrise:'Sunrise',sunset:'Sunset'},
@@ -37,7 +38,7 @@ function applyLanguage(){
   $('language-label').textContent=text.language; $('places-label').textContent=text.places; $('cities-heading').textContent=text.cities;
   $('feels-label').textContent=text.feels; $('humidity-label').textContent=text.humidity; $('wind-label').textContent=text.wind; $('pressure-label').textContent=text.pressure;
   $('outlook-label').textContent=text.outlook; $('forecast-heading').textContent=text.forecast; $('speak').textContent=`▶ ${text.play}`;
-  $('dialog-title').textContent=cityText[0]; $('city-name-label').textContent=cityText[1]; $('search-city').textContent=cityText[2]; $('search-help').textContent=cityText[3]; $('save-city').textContent=cityText[4];
+  $('dialog-title').textContent=cityText[0]; $('city-name-label').textContent=cityText[1]; $('search-city').textContent=cityText[2]; $('search-help').textContent=`${cityText[3]} ${state.favorites.length}/${state.max_favorites}`; $('save-city').textContent=cityText[4];
   $('aqi-label').textContent=health.aqi; $('uv-label').textContent=health.uv; document.documentElement.lang=state.language;
   $('version').textContent=`Version ${state.version} · ${meta.version}`; $('privacy-text').textContent=meta.privacy; $('source-text').textContent=meta.source; $('voice-status').textContent=state.voice?`${meta.voice}: ${state.voice}`:meta.text;
   $('stop-speak').textContent=`■ ${(stopUi[state.language]||stopUi.en)[0]}`;
@@ -56,9 +57,25 @@ function renderCities(){
 }
 
 async function loadCity(city){
-  currentCity=city; renderCities(); $('hero').classList.add('loading-card');
-  try { const lang=state.language,selected=state.cities.find(item=>item.city===city),coordinates=selected?.latitude!==undefined?`&latitude=${selected.latitude}&longitude=${selected.longitude}`:''; const [now,outlook]=await Promise.all([api(`/api/weather?city=${encodeURIComponent(city)}&language=${lang}${coordinates}`),api(`/api/forecast?city=${encodeURIComponent(city)}&language=${lang}&days=7${coordinates}`)]); currentWeather=now.weather; renderWeather(now); renderForecast(outlook.forecast); }
-  catch(error){ showToast(error.message); } finally { $('hero').classList.remove('loading-card'); }
+  const requestNumber=++loadNumber;
+  if(activeController)activeController.abort();
+  activeController=new AbortController();
+  if(currentSnapshot)api('/api/speech/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{});
+  currentCity=city; currentSnapshot=null; renderCities();
+  $('hero').classList.add('loading-card'); $('speak').disabled=true; $('refresh').disabled=true;
+  try {
+    const lang=state.language,selected=state.cities.find(item=>item.city===city),coordinates=selected?.latitude!==undefined?`&latitude=${selected.latitude}&longitude=${selected.longitude}`:'';
+    const options={signal:activeController.signal};
+    const [now,outlook]=await Promise.all([
+      api(`/api/weather?city=${encodeURIComponent(city)}&language=${lang}${coordinates}`,options),
+      api(`/api/forecast?city=${encodeURIComponent(city)}&language=${lang}&days=7${coordinates}`,options)
+    ]);
+    if(requestNumber!==loadNumber)return;
+    currentSnapshot={city,weather:now.weather,label:cityName(selected||{city})};
+    renderWeather(now); renderForecast(outlook.forecast);
+  }
+  catch(error){if(error.name!=='AbortError'&&requestNumber===loadNumber)showToast(error.message)}
+  finally {if(requestNumber===loadNumber){$('hero').classList.remove('loading-card');$('speak').disabled=!currentSnapshot;$('refresh').disabled=false}}
 }
 
 function renderWeather(data){
@@ -76,7 +93,7 @@ function renderForecast(days){
 }
 
 async function init(){
-  try { state=await api('/api/state'); $('language').innerHTML=Object.entries(state.languages).map(([code,name])=>`<option value="${code}" ${code===state.language?'selected':''}>${name}</option>`).join(''); applyLanguage(); renderCities(); const first=state.cities.find(city=>!city.unset); if(first) loadCity(first.city); }
+  try { state=await api('/api/state'); $('speak').disabled=true; $('language').innerHTML=Object.entries(state.languages).map(([code,name])=>`<option value="${code}" ${code===state.language?'selected':''}>${name}</option>`).join(''); applyLanguage(); renderCities(); const first=state.cities.find(city=>!city.unset); if(first) loadCity(first.city); }
   catch(error){ showToast(error.message); }
 }
 
@@ -86,8 +103,8 @@ function openCityDialog(){selectedCandidate=null;$('city-input').value='';$('cit
 $('language').onchange=async event=>{const previous=state.language;try{await api('/api/preferences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({language:event.target.value})});window.location.replace(`/?language=${encodeURIComponent(event.target.value)}&refresh=${Date.now()}`)}catch(error){event.target.value=previous;showToast(error.message)}};
 $('refresh').onclick=()=>currentCity&&loadCity(currentCity); $('add-city').onclick=()=>openCityDialog();
 $('dialog-close').onclick=()=>$('city-dialog').close();
-$('speak').onclick=async()=>{ if(!currentWeather)return; const selected=state.cities.find(city=>city.city===currentCity); try{ await api('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({city:currentCity,label:selected?cityName(selected):currentCity,language:state.language,weather:currentWeather})}); showToast((metaUi[state.language]||metaUi.en).playing); }catch(error){ showToast(error.message); } };
+$('speak').onclick=async()=>{const snapshot=currentSnapshot;if(!snapshot||snapshot.city!==currentCity)return;try{$('speak').disabled=true;await api('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({city:snapshot.city,label:snapshot.label,language:state.language,weather:snapshot.weather})});showToast((metaUi[state.language]||metaUi.en).playing)}catch(error){showToast(error.message)}finally{if(currentSnapshot===snapshot)$('speak').disabled=false}};
 $('stop-speak').onclick=async()=>{try{await api('/api/speech/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});showToast((stopUi[state.language]||stopUi.en)[1])}catch(error){showToast(error.message)}};
-$('search-city').onclick=async()=>{const query=$('city-input').value.trim();if(!query)return;try{const data=await api(`/api/cities/search?q=${encodeURIComponent(query)}&language=${state.language}`);selectedCandidate=null;$('save-city').disabled=true;$('city-results').innerHTML=data.results.map((item,index)=>`<button class="city-result" type="button" data-index="${index}"><strong>${item.name}</strong><small>${[item.region,item.country].filter(Boolean).join(', ')}</small></button>`).join('');document.querySelectorAll('.city-result').forEach(button=>button.onclick=()=>{document.querySelectorAll('.city-result').forEach(item=>item.classList.remove('selected'));button.classList.add('selected');selectedCandidate=data.results[Number(button.dataset.index)];$('save-city').disabled=false})}catch(error){showToast(error.message)}};
+$('search-city').onclick=async()=>{const query=$('city-input').value.trim();if(!query)return;try{const data=await api(`/api/cities/search?q=${encodeURIComponent(query)}&language=${state.language}`),cityText=cityUi[state.language]||cityUi.en;selectedCandidate=null;$('save-city').disabled=true;$('city-results').innerHTML=data.results.map((item,index)=>`<button class="city-result${item.duplicate?' duplicate':''}" type="button" data-index="${index}" ${item.duplicate?'disabled':''}><strong>${item.name}</strong><small>${[item.region,item.country].filter(Boolean).join(', ')}${item.duplicate?` · ${cityText[6]}`:''}</small></button>`).join('');document.querySelectorAll('.city-result:not(:disabled)').forEach(button=>button.onclick=()=>{document.querySelectorAll('.city-result').forEach(item=>item.classList.remove('selected'));button.classList.add('selected');selectedCandidate=data.results[Number(button.dataset.index)];$('save-city').disabled=false})}catch(error){showToast(error.message)}};
 $('city-form').onsubmit=async event=>{event.preventDefault();if(!selectedCandidate)return;try{await api('/api/cities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',location_id:selectedCandidate.location_id})});$('city-dialog').close();window.location.replace(`/?city-added=${Date.now()}`)}catch(error){showToast(error.message)}};
 init();
