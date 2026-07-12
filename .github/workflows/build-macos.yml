@@ -30,7 +30,7 @@ jobs:
         run: PYTHON=python sh scripts/build_macos_app.sh
 
       - name: Upload app bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Voice-Weather-macOS
           path: dist/Voice-Weather-macOS.zip
