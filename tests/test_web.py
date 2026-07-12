@@ -32,7 +32,7 @@ def test_state_api(monkeypatch):
     server, base = run_server(monkeypatch)
     try:
         data = json.loads(urlopen(base + "/api/state", timeout=2).read())
-        assert data["version"] == "3.1.0"
+        assert data["version"] == "3.2.0"
         assert data["cities"][0]["city"] == "Toronto"
         assert data["voice"] == "Samantha"
     finally:
@@ -41,6 +41,15 @@ def test_state_api(monkeypatch):
 
 def test_server_is_localhost_only():
     assert web.HOST == "127.0.0.1"
+
+
+def test_created_server_uses_literal_localhost_name():
+    server = web.create_server(0)
+    try:
+        assert isinstance(server, web.LocalThreadingHTTPServer)
+        assert server.server_name == web.HOST
+    finally:
+        server.server_close()
 
 
 def test_city_add_api(monkeypatch):

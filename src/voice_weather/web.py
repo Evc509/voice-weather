@@ -8,6 +8,7 @@ import webbrowser
 from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
+from socketserver import TCPServer
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__
@@ -20,6 +21,16 @@ from .weather import WeatherError, fetch_forecast, fetch_forecast_at, fetch_weat
 HOST = "127.0.0.1"
 PORT = 8765
 STATIC_ROOT = files("voice_weather").joinpath("web_static")
+
+
+class LocalThreadingHTTPServer(ThreadingHTTPServer):
+    """HTTP server that avoids an unnecessary reverse-DNS lookup at startup."""
+
+    def server_bind(self):
+        TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = host
+        self.server_port = port
 
 
 def build_web_speech(city: str, label: str, language: str) -> str:
@@ -187,9 +198,14 @@ class WebHandler(BaseHTTPRequestHandler):
         return self.send_error(404)
 
 
+def create_server(port=PORT):
+    """Create a localhost-only server without starting its request loop."""
+    return LocalThreadingHTTPServer((HOST, port), WebHandler)
+
+
 def serve(port=PORT, open_browser=True):
-    server = ThreadingHTTPServer((HOST, port), WebHandler)
-    url = f"http://{HOST}:{port}"
+    server = create_server(port)
+    url = f"http://{HOST}:{server.server_port}"
     print(f"Voice Weather Web: {url}")
     print("Press Ctrl+C to stop.")
     if open_browser:

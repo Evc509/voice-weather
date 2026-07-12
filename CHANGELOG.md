@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.2.0 - Unreleased
+
+- Add a native macOS desktop window backed by the existing local web interface.
+- Stop the private HTTP server and active speech automatically when the app window closes.
+- Avoid reverse-DNS lookup delays when starting the localhost server.
+- Add an onedir PyInstaller app-bundle build and GitHub Actions macOS artifact workflow.
+- Keep terminal and browser-based interfaces available for development and automation.
+
 All notable changes to Voice Weather are documented here.
 
 ## [3.1.0] - 2026-07-11

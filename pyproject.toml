@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "voice-weather"
-version = "3.1.0"
-description = "A bilingual voice weather console for macOS"
+version = "3.2.0"
+description = "A multilingual voice weather app for macOS"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -35,9 +35,12 @@ Changelog = "https://github.com/Evc509/voice-weather/blob/main/CHANGELOG.md"
 voice-weather = "voice_weather.launcher:main"
 voice-weather-cli = "voice_weather.app:main"
 voice-weather-web = "voice_weather.web:main"
+voice-weather-desktop = "voice_weather.desktop:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<9"]
+desktop = ["pywebview>=6.0,<7"]
+build = ["pyinstaller>=6.12,<7"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

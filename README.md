@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/Evc509/voice-weather/actions/workflows/tests.yml/badge.svg)](https://github.com/Evc509/voice-weather/actions/workflows/tests.yml)
 
-A friendly multilingual macOS weather console with current conditions, seven-day forecasts and native voice playback.
+A friendly multilingual macOS weather app with current conditions, seven-day forecasts and native voice playback.
 
 ## Features
 
@@ -33,7 +33,16 @@ python -m pip install -e .
 
 ## Usage
 
-Local web interface (recommended):
+Native desktop window (recommended for regular use):
+
+```bash
+python -m pip install -e ".[desktop]"
+voice-weather-desktop
+```
+
+The desktop command opens Voice Weather in its own macOS window. Closing the window also stops the private localhost server and any active speech, so no background process is left running. Packaged releases include Python and their dependencies; end users do not need to install Python.
+
+Local web interface (recommended for development and remote-terminal use):
 
 ```bash
 voice-weather-web
@@ -96,6 +105,15 @@ pytest
 ```
 
 Every push and pull request is also tested automatically on Python 3.9–3.12 with GitHub Actions.
+
+Build the standalone macOS application on a Mac:
+
+```bash
+python3 -m pip install -e ".[desktop,build]"
+PYTHON=python3 sh scripts/build_macos_app.sh
+```
+
+This creates `dist/Voice Weather.app` and `dist/Voice-Weather-macOS.zip`. PyInstaller builds are platform-specific, so each macOS architecture must be built on matching hardware unless a universal Python distribution is used.
 
 ## Privacy
 
