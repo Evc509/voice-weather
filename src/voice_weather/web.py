@@ -5,10 +5,11 @@ import json
 import mimetypes
 import threading
 import webbrowser
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from socketserver import TCPServer
+from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__
@@ -16,7 +17,7 @@ from .app import build_script
 from .i18n import LANGUAGES, weather_text
 from .settings import display_cities, load_settings, save_settings
 from .speech import SpeechError, speak, stop_speech, voice_for
-from .weather import WeatherError, fetch_forecast, fetch_forecast_at, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
+from .weather import Weather, WeatherError, city_metadata, fetch_forecast, fetch_forecast_at, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
 
 HOST = "127.0.0.1"
 PORT = 8765
@@ -33,9 +34,49 @@ class LocalThreadingHTTPServer(ThreadingHTTPServer):
         self.server_port = port
 
 
-def build_web_speech(city: str, label: str, language: str) -> str:
-    weather = fetch_weather(city)
-    return build_script(city, label or city, weather, language)
+WEATHER_FIELDS = tuple(field.name for field in fields(Weather))
+
+
+def weather_from_payload(payload) -> Optional[Weather]:
+    if not isinstance(payload, dict) or not all(name in payload for name in WEATHER_FIELDS):
+        return None
+    return Weather(**{name: str(payload[name]) for name in WEATHER_FIELDS})
+
+
+def build_web_speech(city: str, label: str, language: str, weather: Optional[Weather] = None) -> str:
+    weather = weather or fetch_weather(city)
+    spoken_city = label or city
+    return build_script(spoken_city, spoken_city, weather, language)
+
+
+def repair_city_entry(city: dict, language: str) -> bool:
+    """Repair legacy localized city records using Open-Meteo's stable location ID."""
+    labels = city.get("labels") if isinstance(city.get("labels"), dict) else {}
+    if all(labels.get(code) for code in LANGUAGES):
+        return False
+    if city.get("latitude") is None or city.get("longitude") is None:
+        return False
+    try:
+        location_id = city.get("location_id")
+        if location_id is None:
+            query = labels.get(language) or labels.get("en") or city.get("city", "").split(",")[0]
+            candidates = search_cities(query, language, 10)
+            if not candidates:
+                return False
+            latitude, longitude = float(city["latitude"]), float(city["longitude"])
+            closest = min(
+                candidates,
+                key=lambda item: abs(item["latitude"] - latitude) + abs(item["longitude"] - longitude),
+            )
+            if abs(closest["latitude"] - latitude) + abs(closest["longitude"] - longitude) > 1:
+                return False
+            location_id = closest["location_id"]
+        metadata = city_metadata(int(location_id))
+        city.update(metadata)
+        city["zh"] = metadata["labels"]["zh"]
+        return True
+    except (WeatherError, TypeError, ValueError):
+        return False
 
 
 class WebHandler(BaseHTTPRequestHandler):
@@ -67,6 +108,7 @@ class WebHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         try:
             self.wfile.write(body)
@@ -84,13 +126,18 @@ class WebHandler(BaseHTTPRequestHandler):
             return self.send_static(name)
         if parsed.path == "/api/state":
             settings = load_settings()
+            changed = False
+            for favorite in settings.get("favorites", []):
+                changed = repair_city_entry(favorite, settings.get("language", "en")) or changed
             local = settings.get("local_city")
             if local and not local.get("labels") and local.get("latitude") is not None:
                 try:
                     local["labels"] = localized_city_labels(local["city"].split(",")[0], float(local["latitude"]), float(local["longitude"]))
-                    save_settings(settings)
+                    changed = True
                 except WeatherError:
                     pass
+            if changed:
+                save_settings(settings)
             return self.send_json({
                 "version": __version__,
                 "language": settings["language"],
@@ -153,27 +200,25 @@ class WebHandler(BaseHTTPRequestHandler):
             settings = load_settings()
             favorites = settings.setdefault("favorites", [])
             action = payload.get("action")
-            city = str(payload.get("city", "")).strip()
-            language = payload.get("language", settings.get("language", "en"))
-            name = str(payload.get("name", "")).strip()
             try:
                 index = int(payload.get("index", -1))
             except (TypeError, ValueError):
                 index = -1
             if action == "add":
                 try:
-                    latitude, longitude = float(payload["latitude"]), float(payload["longitude"])
+                    metadata = city_metadata(int(payload["location_id"]))
                 except (KeyError, TypeError, ValueError):
                     return self.send_json({"error": "A confirmed search result is required"}, 400)
-                if not city or not name:
-                    return self.send_json({"error": "A confirmed search result is required"}, 400)
-                try:
-                    labels = localized_city_labels(name, latitude, longitude)
                 except WeatherError as exc:
                     return self.send_json({"error": str(exc)}, 422)
-                if any(item.get("city", "").casefold() == city.casefold() for item in favorites):
+                if any(
+                    item.get("location_id") == metadata["location_id"]
+                    or item.get("city", "").casefold() == metadata["city"].casefold()
+                    for item in favorites
+                ):
                     return self.send_json({"error": "City already exists"}, 409)
-                favorites.append({"city": city, "labels": labels, "latitude": latitude, "longitude": longitude})
+                metadata["zh"] = metadata["labels"]["zh"]
+                favorites.append(metadata)
             elif action == "delete" and 0 <= index < len(favorites):
                 favorites.pop(index)
             else:
@@ -185,7 +230,8 @@ class WebHandler(BaseHTTPRequestHandler):
             city = str(payload.get("city", "")).strip()
             label = str(payload.get("label", "")).strip()
             try:
-                text = build_web_speech(city, label, language) if city else str(payload.get("text", ""))[:1200]
+                snapshot = weather_from_payload(payload.get("weather"))
+                text = build_web_speech(city, label, language, snapshot) if city else str(payload.get("text", ""))[:1200]
                 if not text:
                     return self.send_json({"error": "Missing text"}, 400)
                 threading.Thread(target=speak, args=(text, language), daemon=True).start()

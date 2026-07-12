@@ -56,6 +56,8 @@ voice-weather-web --no-browser
 
 Use `＋` to add a city: enter a standard place name, run Search, review the city/region/country candidates, and confirm one result. Confirmed cities retain coordinates and five-language display names. The first local city is fixed; other cities can be explicitly added or deleted.
 
+The `↻ Refresh weather` control reloads current conditions and the seven-day forecast for the selected city. It does not change your detected location or reset the city list.
+
 Interactive mode:
 
 ```bash

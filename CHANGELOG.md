@@ -7,6 +7,10 @@
 - Avoid reverse-DNS lookup delays when starting the localhost server.
 - Add an onedir PyInstaller app-bundle build and GitHub Actions macOS artifact workflow.
 - Keep terminal and browser-based interfaces available for development and automation.
+- Make voice playback use the weather already displayed instead of fetching a second potentially different result.
+- Store Open-Meteo location IDs and resolve canonical city data consistently in all five languages.
+- Repair older coordinate-backed cities that are missing translated labels.
+- Force fresh static assets after language changes and localize the weather refresh control.
 
 All notable changes to Voice Weather are documented here.
 

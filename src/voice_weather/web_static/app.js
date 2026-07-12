@@ -4,11 +4,11 @@ let state, currentCity, currentWeather;
 const icons = {Clear:'☀', Sunny:'☀', 'Mainly clear':'🌤', 'Partly cloudy':'⛅', Overcast:'☁', Fog:'≋', 'Light rain':'🌦', 'Moderate rain':'🌧', 'Heavy rain':'🌧', 'Light snow':'🌨', 'Moderate snow':'❄', Thunderstorm:'⛈'};
 const locales = {zh:'zh-CN', en:'en-CA', fr:'fr-FR', es:'es-ES', ja:'ja-JP'};
 const ui = {
-  en:{language:'Language',places:'PLACES',cities:'Your cities',feels:'Feels like',humidity:'Humidity',wind:'Wind',pressure:'Pressure',outlook:'OUTLOOK',forecast:'Seven-day forecast',play:'Play weather'},
-  zh:{language:'语言',places:'城市',cities:'我的城市',feels:'体感温度',humidity:'湿度',wind:'风速',pressure:'气压',outlook:'未来天气',forecast:'七天天气预报',play:'播放天气'},
-  fr:{language:'Langue',places:'LIEUX',cities:'Vos villes',feels:'Ressenti',humidity:'Humidité',wind:'Vent',pressure:'Pression',outlook:'PRÉVISIONS',forecast:'Prévisions sur sept jours',play:'Écouter la météo'},
-  es:{language:'Idioma',places:'LUGARES',cities:'Tus ciudades',feels:'Sensación',humidity:'Humedad',wind:'Viento',pressure:'Presión',outlook:'PRONÓSTICO',forecast:'Pronóstico de siete días',play:'Escuchar el tiempo'},
-  ja:{language:'言語',places:'場所',cities:'都市',feels:'体感温度',humidity:'湿度',wind:'風速',pressure:'気圧',outlook:'予報',forecast:'7日間予報',play:'天気を再生'}
+  en:{language:'Language',places:'PLACES',cities:'Your cities',feels:'Feels like',humidity:'Humidity',wind:'Wind',pressure:'Pressure',outlook:'OUTLOOK',forecast:'Seven-day forecast',play:'Play weather',refresh:'Refresh weather'},
+  zh:{language:'语言',places:'城市',cities:'我的城市',feels:'体感温度',humidity:'湿度',wind:'风速',pressure:'气压',outlook:'未来天气',forecast:'七天天气预报',play:'播放天气',refresh:'刷新天气'},
+  fr:{language:'Langue',places:'LIEUX',cities:'Vos villes',feels:'Ressenti',humidity:'Humidité',wind:'Vent',pressure:'Pression',outlook:'PRÉVISIONS',forecast:'Prévisions sur sept jours',play:'Écouter la météo',refresh:'Actualiser la météo'},
+  es:{language:'Idioma',places:'LUGARES',cities:'Tus ciudades',feels:'Sensación',humidity:'Humedad',wind:'Viento',pressure:'Presión',outlook:'PRONÓSTICO',forecast:'Pronóstico de siete días',play:'Escuchar el tiempo',refresh:'Actualizar el tiempo'},
+  ja:{language:'言語',places:'場所',cities:'都市',feels:'体感温度',humidity:'湿度',wind:'風速',pressure:'気圧',outlook:'予報',forecast:'7日間予報',play:'天気を再生',refresh:'天気を更新'}
 };
 const cityUi = {
   en:['Add a city','City, region or country','Search','Search first, then confirm one available location.','Add selected city','Delete this city?'],
@@ -41,6 +41,7 @@ function applyLanguage(){
   $('aqi-label').textContent=health.aqi; $('uv-label').textContent=health.uv; document.documentElement.lang=state.language;
   $('version').textContent=`Version ${state.version} · ${meta.version}`; $('privacy-text').textContent=meta.privacy; $('source-text').textContent=meta.source; $('voice-status').textContent=state.voice?`${meta.voice}: ${state.voice}`:meta.text;
   $('stop-speak').textContent=`■ ${(stopUi[state.language]||stopUi.en)[0]}`;
+  $('refresh-label').textContent=text.refresh; $('refresh').title=text.refresh; $('refresh').setAttribute('aria-label',text.refresh);
 }
 
 function renderCities(){
@@ -82,11 +83,11 @@ async function init(){
 let selectedCandidate=null;
 function openCityDialog(){selectedCandidate=null;$('city-input').value='';$('city-results').innerHTML='';$('save-city').disabled=true;$('city-dialog').showModal()}
 
-$('language').onchange=async event=>{ await api('/api/preferences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({language:event.target.value})}); location.reload(); };
+$('language').onchange=async event=>{const previous=state.language;try{await api('/api/preferences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({language:event.target.value})});window.location.replace(`/?language=${encodeURIComponent(event.target.value)}&refresh=${Date.now()}`)}catch(error){event.target.value=previous;showToast(error.message)}};
 $('refresh').onclick=()=>currentCity&&loadCity(currentCity); $('add-city').onclick=()=>openCityDialog();
 $('dialog-close').onclick=()=>$('city-dialog').close();
-$('speak').onclick=async()=>{ if(!currentWeather)return; const selected=state.cities.find(city=>city.city===currentCity); try{ await api('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({city:currentCity,label:selected?cityName(selected):currentCity,language:state.language})}); showToast((metaUi[state.language]||metaUi.en).playing); }catch(error){ showToast(error.message); } };
+$('speak').onclick=async()=>{ if(!currentWeather)return; const selected=state.cities.find(city=>city.city===currentCity); try{ await api('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({city:currentCity,label:selected?cityName(selected):currentCity,language:state.language,weather:currentWeather})}); showToast((metaUi[state.language]||metaUi.en).playing); }catch(error){ showToast(error.message); } };
 $('stop-speak').onclick=async()=>{try{await api('/api/speech/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});showToast((stopUi[state.language]||stopUi.en)[1])}catch(error){showToast(error.message)}};
 $('search-city').onclick=async()=>{const query=$('city-input').value.trim();if(!query)return;try{const data=await api(`/api/cities/search?q=${encodeURIComponent(query)}&language=${state.language}`);selectedCandidate=null;$('save-city').disabled=true;$('city-results').innerHTML=data.results.map((item,index)=>`<button class="city-result" type="button" data-index="${index}"><strong>${item.name}</strong><small>${[item.region,item.country].filter(Boolean).join(', ')}</small></button>`).join('');document.querySelectorAll('.city-result').forEach(button=>button.onclick=()=>{document.querySelectorAll('.city-result').forEach(item=>item.classList.remove('selected'));button.classList.add('selected');selectedCandidate=data.results[Number(button.dataset.index)];$('save-city').disabled=false})}catch(error){showToast(error.message)}};
-$('city-form').onsubmit=async event=>{event.preventDefault();if(!selectedCandidate)return;try{await api('/api/cities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',city:selectedCandidate.canonical,name:selectedCandidate.name,latitude:selectedCandidate.latitude,longitude:selectedCandidate.longitude,language:state.language})});$('city-dialog').close();location.reload()}catch(error){showToast(error.message)}};
+$('city-form').onsubmit=async event=>{event.preventDefault();if(!selectedCandidate)return;try{await api('/api/cities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',location_id:selectedCandidate.location_id})});$('city-dialog').close();window.location.replace(`/?city-added=${Date.now()}`)}catch(error){showToast(error.message)}};
 init();

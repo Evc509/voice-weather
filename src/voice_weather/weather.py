@@ -179,6 +179,7 @@ def search_cities(query: str, language: str = "en", limit: int = 6, timeout: int
         for item in response.json().get("results", []):
             name, region, country = item["name"], item.get("admin1", ""), item.get("country", "")
             results.append({
+                "location_id": int(item["id"]),
                 "name": name, "region": region, "country": country,
                 "canonical": ", ".join(part for part in (name, region, country) if part),
                 "latitude": float(item["latitude"]), "longitude": float(item["longitude"]),
@@ -188,14 +189,54 @@ def search_cities(query: str, language: str = "en", limit: int = 6, timeout: int
         raise WeatherError(f"无法搜索城市 {query}：{exc}") from exc
 
 
+def _location_by_id(location_id: int, language: str, timeout: int = 10) -> dict:
+    try:
+        response = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/get",
+            params={"id": int(location_id), "language": language},
+            headers={"User-Agent": "voice-weather/3.2.0"}, timeout=timeout,
+        )
+        response.raise_for_status()
+        result = response.json()
+        if not result or "name" not in result:
+            raise WeatherError(f"找不到地点编号：{location_id}")
+        return result
+    except WeatherError:
+        raise
+    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+        raise WeatherError(f"无法读取地点编号 {location_id}：{exc}") from exc
+
+
+def city_metadata(location_id: int, timeout: int = 10) -> dict:
+    """Resolve one stable location ID into canonical data and all UI labels."""
+    locations = {
+        language: _location_by_id(location_id, language, timeout)
+        for language in ("zh", "en", "fr", "es", "ja")
+    }
+    english = locations["en"]
+    canonical = ", ".join(
+        part for part in (english["name"], english.get("admin1", ""), english.get("country", "")) if part
+    )
+    return {
+        "city": canonical,
+        "labels": {language: location["name"] for language, location in locations.items()},
+        "latitude": float(english["latitude"]),
+        "longitude": float(english["longitude"]),
+        "location_id": int(location_id),
+    }
+
+
 def localized_city_labels(name: str, latitude: float, longitude: float, timeout: int = 10) -> dict:
-    labels = {}
-    for language in ("zh", "en", "fr", "es", "ja"):
-        candidates = search_cities(name, language, 10, timeout)
+    """Find a location once, then resolve its names by stable ID in every language."""
+    for search_language in ("en", "zh", "fr", "es", "ja"):
+        candidates = search_cities(name, search_language, 10, timeout)
         if candidates:
-            closest = min(candidates, key=lambda item: abs(item["latitude"] - latitude) + abs(item["longitude"] - longitude))
-            labels[language] = closest["name"]
-    return labels
+            closest = min(
+                candidates,
+                key=lambda item: abs(item["latitude"] - latitude) + abs(item["longitude"] - longitude),
+            )
+            return city_metadata(closest["location_id"], timeout)["labels"]
+    return {}
 
 
 def fetch_forecast(city: str, days: int = 7, timeout: int = 10) -> list[ForecastDay]:

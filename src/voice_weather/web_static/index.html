@@ -4,12 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <title>Voice Weather</title>
-  <link rel="stylesheet" href="/static/styles.css">
-  <link rel="stylesheet" href="/static/dialog.css">
-  <link rel="stylesheet" href="/static/sidebar.css">
-  <link rel="stylesheet" href="/static/health.css">
-  <link rel="stylesheet" href="/static/city-search.css">
+  <link rel="stylesheet" href="/static/styles.css?v=320-city-sync">
+  <link rel="stylesheet" href="/static/dialog.css?v=320-city-sync">
+  <link rel="stylesheet" href="/static/sidebar.css?v=320-city-sync">
+  <link rel="stylesheet" href="/static/health.css?v=320-city-sync">
+  <link rel="stylesheet" href="/static/city-search.css?v=320-city-sync">
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -18,7 +19,7 @@
       <div class="brand"><span class="brand-mark">◉</span><div><strong>Voice Weather</strong><small id="version">Local weather, beautifully spoken</small></div></div>
       <div class="controls">
         <label class="select-wrap"><span id="language-label">Language</span><select id="language" aria-label="Language"></select></label>
-        <button id="refresh" class="icon-button" aria-label="Refresh weather">↻</button>
+        <button id="refresh" class="refresh-button" aria-label="Refresh weather"><span aria-hidden="true">↻</span><span id="refresh-label">Refresh weather</span></button>
       </div>
     </header>
 
@@ -63,6 +64,6 @@
       <div class="dialog-actions"><button id="save-city" type="submit" class="primary-button" disabled>Add selected city</button></div>
     </form>
   </dialog>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=320-city-sync"></script>
 </body>
 </html>

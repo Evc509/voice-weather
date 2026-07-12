@@ -1,7 +1,7 @@
 from voice_weather.app import build_script
 import requests
 
-from voice_weather.weather import Weather, WeatherError, fetch_forecast, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
+from voice_weather.weather import Weather, WeatherError, city_metadata, fetch_forecast, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
 
 
 SAMPLE = Weather("20", "19", "0", "55", "12", "1013", "Sunny", "10:00")
@@ -43,7 +43,28 @@ class FakeGeocodingResponse:
         return None
 
     def json(self):
-        return {"results": [{"name": "Toronto", "latitude": 43.65, "longitude": -79.38, "admin1": "Ontario", "country": "Canada"}]}
+        return {"results": [{"id": 6167865, "name": "Toronto", "latitude": 43.65, "longitude": -79.38, "admin1": "Ontario", "country": "Canada"}]}
+
+
+class FakeLocationResponse:
+    def __init__(self, language):
+        self.language = language
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        names = {"zh": "多伦多", "en": "Toronto", "fr": "Toronto", "es": "Toronto", "ja": "トロント"}
+        regions = {"zh": "安大略", "en": "Ontario", "fr": "Ontario", "es": "Ontario", "ja": "オンタリオ州"}
+        countries = {"zh": "加拿大", "en": "Canada", "fr": "Canada", "es": "Canadá", "ja": "カナダ"}
+        return {
+            "id": 6167865,
+            "name": names[self.language],
+            "latitude": 43.70643,
+            "longitude": -79.39864,
+            "admin1": regions[self.language],
+            "country": countries[self.language],
+        }
 
 
 class FakeForecastResponse:
@@ -109,12 +130,33 @@ def test_city_search_returns_confirmable_location(monkeypatch):
     monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeGeocodingResponse())
     results = search_cities("Toronto", "fr")
     assert results[0]["canonical"] == "Toronto, Ontario, Canada"
+    assert results[0]["location_id"] == 6167865
     assert results[0]["latitude"] == 43.65
 
 
 def test_city_labels_are_collected_for_all_languages(monkeypatch):
-    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: FakeGeocodingResponse())
-    assert set(localized_city_labels("Toronto", 43.65, -79.38)) == {"zh", "en", "fr", "es", "ja"}
+    def fake_get(url, **kwargs):
+        if url.endswith("/get"):
+            return FakeLocationResponse(kwargs["params"]["language"])
+        return FakeGeocodingResponse()
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    labels = localized_city_labels("Toronto", 43.65, -79.38)
+    assert labels["zh"] == "多伦多"
+    assert labels["en"] == "Toronto"
+
+
+def test_city_metadata_uses_stable_id_for_every_language(monkeypatch):
+    monkeypatch.setattr(
+        requests,
+        "get",
+        lambda url, **kwargs: FakeLocationResponse(kwargs["params"]["language"]),
+    )
+    metadata = city_metadata(6167865)
+    assert metadata["city"] == "Toronto, Ontario, Canada"
+    assert metadata["labels"]["zh"] == "多伦多"
+    assert metadata["labels"]["ja"] == "トロント"
+    assert metadata["location_id"] == 6167865
 
 
 def test_coordinate_weather_skips_geocoding(monkeypatch):
