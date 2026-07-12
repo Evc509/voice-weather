@@ -207,6 +207,21 @@ def _location_by_id(location_id: int, language: str, timeout: int = 10) -> dict:
         raise WeatherError(f"无法读取地点编号 {location_id}：{exc}") from exc
 
 
+def city_result_by_id(location_id: int, language: str, timeout: int = 10) -> dict:
+    """Return one search candidate localized by its stable location ID."""
+    item = _location_by_id(location_id, language, timeout)
+    name, region, country = item["name"], item.get("admin1", ""), item.get("country", "")
+    return {
+        "location_id": int(item["id"]),
+        "name": name,
+        "region": region,
+        "country": country,
+        "canonical": ", ".join(part for part in (name, region, country) if part),
+        "latitude": float(item["latitude"]),
+        "longitude": float(item["longitude"]),
+    }
+
+
 def city_metadata(location_id: int, timeout: int = 10) -> dict:
     """Resolve one stable location ID into canonical data and all UI labels."""
     locations = {

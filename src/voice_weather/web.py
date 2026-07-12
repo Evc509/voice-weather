@@ -15,9 +15,9 @@ from urllib.parse import parse_qs, urlparse
 from . import __version__
 from .app import build_script
 from .i18n import LANGUAGES, weather_text
-from .settings import MAX_FAVORITES, cities_match, display_cities, load_settings, save_settings
+from .settings import MAX_FAVORITES, cities_match, display_cities, load_settings, resolve_city_query, save_settings
 from .speech import SpeechError, speak, stop_speech, voice_for
-from .weather import Weather, WeatherError, city_metadata, fetch_forecast, fetch_forecast_at, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
+from .weather import Weather, WeatherError, city_metadata, city_result_by_id, fetch_forecast, fetch_forecast_at, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
 
 HOST = "127.0.0.1"
 PORT = 8765
@@ -46,6 +46,22 @@ CITY_MESSAGES = {
 
 def city_message(language: str, key: str) -> str:
     return CITY_MESSAGES.get(language, CITY_MESSAGES["en"])[key]
+
+
+def rank_alias_results(results: list[dict], resolved_term: str) -> list[dict]:
+    """Prefer exact city names, then region and country qualifiers."""
+    parts = [part.strip().casefold() for part in resolved_term.split(",") if part.strip()]
+    if not parts:
+        return results
+    exact = [result for result in results if result.get("name", "").strip().casefold() == parts[0]]
+    candidates = exact or results
+    qualifiers = parts[1:]
+
+    def qualifier_score(result):
+        context = " ".join(str(result.get(key, "")) for key in ("region", "country", "canonical")).casefold()
+        return sum(qualifier in context for qualifier in qualifiers)
+
+    return sorted(candidates, key=qualifier_score, reverse=True)
 
 
 def weather_from_payload(payload) -> Optional[Weather]:
@@ -178,8 +194,16 @@ class WebHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/cities/search":
             term = query.get("q", [""])[0].strip()
             try:
-                results = search_cities(term, language)
                 settings = load_settings()
+                results = search_cities(term, language)
+                resolved_term = term if results else resolve_city_query(term, settings)
+                if not results and resolved_term.casefold() != term.casefold():
+                    english_name = resolved_term.split(",")[0].strip()
+                    english_results = rank_alias_results(search_cities(english_name, "en"), resolved_term)
+                    results = [
+                        city_result_by_id(result["location_id"], language)
+                        for result in english_results[:6]
+                    ]
                 existing_ids = {item.get("location_id") for item in settings.get("favorites", [])}
                 existing_names = {
                     str(item.get("labels", {}).get(language, "")).strip().casefold()

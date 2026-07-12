@@ -178,6 +178,47 @@ def test_city_search_marks_same_visible_name_as_already_added(monkeypatch):
         server.shutdown()
 
 
+def test_city_search_retries_localized_alias_when_direct_search_is_empty(monkeypatch):
+    calls = []
+
+    def fake_search(term, language):
+        calls.append((term, language))
+        if term == "Tokyo":
+            return [{
+                "location_id": 1850147, "name": "東京", "region": "東京都", "country": "日本",
+                "latitude": 35.6895, "longitude": 139.6917,
+            }]
+        return []
+
+    monkeypatch.setattr(web, "load_settings", lambda: {"version": 5, "language": "ja", "favorites": []})
+    monkeypatch.setattr(web, "search_cities", fake_search)
+    monkeypatch.setattr(web, "city_result_by_id", lambda location_id, language: {
+        "location_id": location_id, "name": "東京都", "region": "東京都", "country": "日本",
+        "latitude": 35.6895, "longitude": 139.6917,
+    })
+    server = web.ThreadingHTTPServer((web.HOST, 0), web.WebHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        data = json.loads(urlopen(f"http://{web.HOST}:{server.server_port}/api/cities/search?q={quote('東京')}&language=ja", timeout=2).read())
+        assert calls == [("東京", "ja"), ("Tokyo", "en")]
+        assert data["results"][0]["location_id"] == 1850147
+    finally:
+        server.shutdown()
+
+
+def test_alias_ranking_removes_wrong_name_and_prefers_region_country():
+    results = [
+        {"name": "Austin", "region": "Texas", "country": "United States", "canonical": "Austin, Texas, United States"},
+        {"name": "Waterloo", "region": "Iowa", "country": "United States", "canonical": "Waterloo, Iowa, United States"},
+        {"name": "Waterloo", "region": "Ontario", "country": "Canada", "canonical": "Waterloo, Ontario, Canada"},
+    ]
+    ranked = web.rank_alias_results(results, "Waterloo, Ontario, Canada")
+    assert [item["canonical"] for item in ranked] == [
+        "Waterloo, Ontario, Canada",
+        "Waterloo, Iowa, United States",
+    ]
+
+
 def test_city_add_rejects_same_visible_name_at_different_coordinates(monkeypatch):
     settings = {"version": 5, "language": "en", "favorites": [{
         "city": "Beijing, Beijing Municipality, China",

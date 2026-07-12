@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.2.0 - Unreleased
+## 3.2.0 - 2026-07-12
 
 - Add a native macOS desktop window backed by the existing local web interface.
 - Stop the private HTTP server and active speech automatically when the app window closes.
@@ -15,6 +15,7 @@
 - Prevent duplicate shortcuts by location ID, nearby coordinates and visible city names.
 - Limit new favorites to 20 and flag duplicate search results before confirmation.
 - Improve primary-button contrast in both light and dark appearance.
+- Accept supported localized city input with a resource-light alias fallback, stable location IDs and region-aware candidate ranking.
 
 All notable changes to Voice Weather are documented here.
 

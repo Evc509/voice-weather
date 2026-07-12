@@ -58,6 +58,8 @@ Use `＋` to add a city: enter a standard place name, run Search, review the cit
 
 Duplicate locations and duplicate visible city names are rejected. Up to 20 favorite cities can be added; the detected local city does not count toward this limit.
 
+City search first uses the name exactly as entered. If a supported translated or native-script name is not recognized directly, the app retries with its standard place name, then localizes the confirmed location by stable ID.
+
 The `↻ Refresh weather` control reloads current conditions and the seven-day forecast for the selected city. It does not change your detected location or reset the city list.
 
 Interactive mode:

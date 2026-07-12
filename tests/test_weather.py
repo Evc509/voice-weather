@@ -1,7 +1,7 @@
 from voice_weather.app import build_script
 import requests
 
-from voice_weather.weather import Weather, WeatherError, city_metadata, fetch_forecast, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
+from voice_weather.weather import Weather, WeatherError, city_metadata, city_result_by_id, fetch_forecast, fetch_weather, fetch_weather_at, localized_city_labels, search_cities
 
 
 SAMPLE = Weather("20", "19", "0", "55", "12", "1013", "Sunny", "10:00")
@@ -157,6 +157,18 @@ def test_city_metadata_uses_stable_id_for_every_language(monkeypatch):
     assert metadata["labels"]["zh"] == "多伦多"
     assert metadata["labels"]["ja"] == "トロント"
     assert metadata["location_id"] == 6167865
+
+
+def test_city_result_by_id_localizes_without_changing_identity(monkeypatch):
+    monkeypatch.setattr(
+        requests,
+        "get",
+        lambda url, **kwargs: FakeLocationResponse(kwargs["params"]["language"]),
+    )
+    result = city_result_by_id(6167865, "zh")
+    assert result["name"] == "多伦多"
+    assert result["location_id"] == 6167865
+    assert result["latitude"] == 43.70643
 
 
 def test_coordinate_weather_skips_geocoding(monkeypatch):

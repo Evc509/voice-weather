@@ -1,7 +1,7 @@
 import json
 
 from voice_weather.config import DEFAULT_CITIES
-from voice_weather.settings import MAX_FAVORITES, WORLD_FAVORITES, cities_match, display_cities, load_settings, save_settings
+from voice_weather.settings import MAX_FAVORITES, WORLD_FAVORITES, cities_match, display_cities, load_settings, resolve_city_query, save_settings
 
 
 def test_migrates_legacy_cities(tmp_path):
@@ -75,3 +75,11 @@ def test_load_settings_removes_duplicate_names_without_deleting_legacy_cities(tm
     data = load_settings(path, tmp_path / "missing.json")
     assert len(data["favorites"]) == MAX_FAVORITES + 2
     assert sum(item["labels"]["en"] == "City 0" for item in data["favorites"]) == 1
+
+
+def test_localized_city_input_resolves_to_stable_search_terms():
+    settings = {"favorites": []}
+    assert resolve_city_query("東京", settings) == "Tokyo, Japan"
+    assert resolve_city_query("滑铁卢", settings) == "Waterloo, Ontario, Canada"
+    assert resolve_city_query("Pékin", settings) == "Beijing, China"
+    assert resolve_city_query("大阪", settings) == "Osaka, Japan"

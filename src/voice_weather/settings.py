@@ -1,11 +1,21 @@
 import json
 from copy import deepcopy
 from pathlib import Path
+from unicodedata import combining, normalize
 
 from .config import APP_DIR, CITIES_FILE, DEFAULT_CITIES
 
 SETTINGS_FILE = APP_DIR / "settings.json"
 MAX_FAVORITES = 20
+EXTRA_SEARCH_ALIASES = {
+    "滑铁卢": "Waterloo, Ontario, Canada", "滑鐵盧": "Waterloo, Ontario, Canada",
+    "東京": "Tokyo, Japan", "大阪": "Osaka, Japan", "京都": "Kyoto, Japan", "横浜": "Yokohama, Japan",
+    "名古屋": "Nagoya, Japan", "札幌": "Sapporo, Japan", "福岡": "Fukuoka, Japan", "広島": "Hiroshima, Japan",
+    "神戸": "Kobe, Japan", "仙台": "Sendai, Japan", "那覇": "Naha, Japan",
+    "上海": "Shanghai, China", "广州": "Guangzhou, China", "廣州": "Guangzhou, China", "深圳": "Shenzhen, China",
+    "成都": "Chengdu, China", "杭州": "Hangzhou, China", "南京": "Nanjing, China", "武汉": "Wuhan, China",
+    "武漢": "Wuhan, China", "西安": "Xi'an, China", "苏州": "Suzhou, China", "蘇州": "Suzhou, China",
+}
 WORLD_FAVORITES = [
     {"city":"Toronto, Canada","zh":"多伦多","labels":{"zh":"多伦多","en":"Toronto","fr":"Toronto","es":"Toronto","ja":"トロント"}},
     {"city":"Vancouver, Canada","zh":"温哥华","labels":{"zh":"温哥华","en":"Vancouver","fr":"Vancouver","es":"Vancouver","ja":"バンクーバー"}},
@@ -62,6 +72,31 @@ def deduplicate_favorites(favorites: list[dict]) -> list[dict]:
         if isinstance(city, dict) and not any(cities_match(city, existing) for existing in unique):
             unique.append(city)
     return unique
+
+
+def _alias_key(value: str) -> str:
+    decomposed = normalize("NFKD", str(value or "").strip().casefold())
+    return "".join(character for character in decomposed if not combining(character) and character.isalnum())
+
+
+def resolve_city_query(query: str, settings: dict) -> str:
+    """Resolve supported localized input to a stable search term without another service."""
+    target = _alias_key(query)
+    records = []
+    if isinstance(settings.get("local_city"), dict):
+        records.append(settings["local_city"])
+    records.extend(item for item in settings.get("favorites", []) if isinstance(item, dict))
+    for alias, canonical in EXTRA_SEARCH_ALIASES.items():
+        if _alias_key(alias) == target:
+            return canonical
+    records.extend((*WORLD_FAVORITES, *DEFAULT_CITIES))
+    for record in records:
+        canonical = str(record.get("city", "")).strip()
+        labels = record.get("labels") if isinstance(record.get("labels"), dict) else {}
+        names = [canonical, record.get("zh"), *labels.values()]
+        if canonical and any(_alias_key(name) == target for name in names if name):
+            return canonical
+    return query.strip()
 
 
 def load_settings(path: Path = SETTINGS_FILE, legacy_path: Path = CITIES_FILE) -> dict:
